@@ -1,0 +1,42 @@
+{
+  "name": "Archypix Dev Container",
+  "dockerComposeFile": "docker-compose.dev.yml",
+  "service": "archypix-app-back", // Primary container
+  "workspaceFolder": "/app",
+  "extensions": [
+    "rust-lang.rust-analyzer",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "streetsidesoftware.code-spell-checker"
+  ],
+  "settings": {
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "rust-analyzer.cargo.allFeatures": true,
+    "editor.formatOnSave": true,
+    "files.autoSave": "afterDelay",
+    "eslint.validate": ["javascript", "typescript", "vue"]
+  },
+  "postCreateCommand": "cargo build",
+  "remoteUser": "root",
+  "shutdownAction": "none",
+  "mounts": [
+    "source=${localWorkspaceFolder}/app_back,target=/app,type=bind,consistency=cached",
+    "source=${localWorkspaceFolder}/app_front,target=/app_front,type=bind,consistency=cached",
+    "source=${localWorkspaceFolder}/db,target=/var/lib/mysql,type=bind"
+  ],
+  "remoteEnv": {
+    "DATABASE_URL": "mysql://archypix:archypix@archypix-app-db:3306/archypix",
+    "SMTP_SERVER": "email-smtp.eu-north-1.amazonaws.com",
+    "SMTP_USERNAME": "",
+    "SMTP_PASSWORD": "",
+    "FRONTEND_HOST": "http://localhost:3000",
+    "NUXT_PUBLIC_BACKEND_HOST": "http://archypix-app-back:8000",
+    "NUXT_PUBLIC_BACKEND_HOST_SSR": "http://archypix-app-back:8000"
+  },
+  "runServices": [
+    "archypix-app-db",
+    "archypix-app-back",
+    "archypix-front"
+  ],
+  "workspaceMount": "source=${localWorkspaceFolder}/app_back,target=/app,type=bind,consistency=cached"
+}

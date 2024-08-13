@@ -1,0 +1,48 @@
+version: '3.3'
+services:
+  archypix-app-dev-db:
+    image: mysql:8.4
+    container_name: archypix-app-dev-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: archypix
+      MYSQL_DATABASE: archypix
+      MYSQL_USER: archypix
+      MYSQL_PASSWORD: archypix
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./db:/var/lib/mysql
+
+  archypix-app-dev-back:
+    build:
+      context: ../app_back
+      dockerfile: ../.devcontainer/app_back/Dockerfile
+    container_name: archypix-app-dev-back
+    restart: unless-stopped
+    depends_on:
+      - archypix-app-dev-db
+    ports:
+      - "8000:80"
+    environment:
+      - DATABASE_URL=mysql://archypix:archypix@archypix-app-dev-db:3306/archypix
+      - SMTP_SERVER=email-smtp.eu-north-1.amazonaws.com
+      - SMTP_USERNAME=
+      - SMTP_PASSWORD=
+      - FRONTEND_HOST=http://localhost:3000 # for CORS policy
+    volumes:
+      - ../app_back:/app
+
+  archypix-app-dev-front:
+    build:
+      context: ../app_front
+      dockerfile: ../.devcontainer/app_front/Dockerfile
+    container_name: archypix-app-dev-front
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - NUXT_PUBLIC_BACKEND_HOST=http://archypix-app-back:8000
+      - NUXT_PUBLIC_BACKEND_HOST_SSR=http://archypix-app-back:8000
+    volumes:
+      - ../app_front:/app

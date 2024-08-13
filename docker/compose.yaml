@@ -5,7 +5,7 @@ services:
     container_name: archypix-app-db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: archypix
       MYSQL_DATABASE: archypix
       MYSQL_USER: archypix
       MYSQL_PASSWORD: archypix
@@ -15,7 +15,9 @@ services:
       - ./db:/var/lib/mysql
 
   archypix-app-back:
-    build: app_back
+    build:
+      context: ../app_back
+      dockerfile: ../docker/app_back/Dockerfile
     image: archypix-app-back
     container_name: archypix-app-back
     restart: unless-stopped
@@ -30,8 +32,10 @@ services:
       - SMTP_PASSWORD=
       - FRONTEND_HOST=http://localhost:3000 # for CORS policy
 
-  archypix-front:
-    build: app_front
+  archypix-app-front:
+    build:
+      context: ../app_front
+      dockerfile: ../docker/app_front/Dockerfile
     image: archypix-app-front
     container_name: archypix-app-front
     restart: unless-stopped
