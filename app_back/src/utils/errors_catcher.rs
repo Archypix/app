@@ -1,8 +1,7 @@
 use diesel::result::Error;
 use enum_kinds::EnumKind;
-use rocket::Request;
-use rocket::response::status;
 use rocket::serde::json::Json;
+use rocket::Request;
 use serde::Serialize;
 
 #[derive(Responder)]
@@ -45,9 +44,6 @@ pub enum ErrorType {
     UserNotAdmin,
     // Database error
     DatabaseError(String, Error),
-}
-pub struct EnumType {
-    pub error_type: ErrorTypeKind,
 }
 
 impl ErrorType {

@@ -1,6 +1,5 @@
 use chrono::NaiveDateTime;
-use diesel::{Associations, Connection, Identifiable, Insertable, Queryable, Selectable};
-use diesel::ExpressionMethods;
+use diesel::{Associations, Identifiable, Insertable, Queryable, Selectable};
 
 use crate::database::schema::*;
 
@@ -21,8 +20,6 @@ pub struct User {
     pub status: UserStatus,
     pub storage_count_mo: u32,
 }
-
-pub struct AuthenticatedUser {}
 
 #[derive(Queryable, Selectable, Identifiable, Associations, Debug, PartialEq)]
 #[diesel(primary_key(user_id_acceptor, user_id_sharer))]

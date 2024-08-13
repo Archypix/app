@@ -2,10 +2,9 @@ use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use async_trait::async_trait;
-use libunftp::auth::{DefaultUser, UserDetail};
-use libunftp::storage::{Fileinfo, Metadata, Result, StorageBackend};
 use crate::ftp_server::ftp_auth::PMUser;
+use async_trait::async_trait;
+use libunftp::storage::{Fileinfo, Metadata, Result, StorageBackend};
 
 #[derive(Debug)]
 pub struct Vfs {}

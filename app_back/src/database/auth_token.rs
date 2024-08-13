@@ -1,10 +1,10 @@
 use chrono::{NaiveDateTime, TimeDelta, Utc};
-use diesel::{Connection, Identifiable, insert_into, Insertable, Queryable, RunQueryDsl, Selectable, update};
 use diesel::ExpressionMethods;
+use diesel::{insert_into, update, Identifiable, Insertable, Queryable, RunQueryDsl, Selectable};
 
 use crate::database::database::DBConn;
-use crate::database::schema::*;
 use crate::database::schema::auth_tokens;
+use crate::database::schema::*;
 use crate::utils::auth::DeviceInfo;
 use crate::utils::errors_catcher::{ErrorResponder, ErrorType};
 use crate::utils::utils::random_token;

@@ -1,20 +1,15 @@
-use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl, select, SelectableHelper, update};
-use diesel::dsl::insert_into;
+use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl, SelectableHelper};
 use pwhash::bcrypt;
-use rocket::serde::{Deserialize, Serialize};
 use rocket::serde::json::Json;
-use validator::Validate;
+use rocket::serde::{Deserialize, Serialize};
 
 use crate::database::auth_token::AuthToken;
 use crate::database::database::{DBConn, DBPool};
-use crate::database::schema::{inet6_aton, last_insert_id, UserStatus};
-use crate::database::schema::auth_tokens;
 use crate::database::schema::users;
+use crate::database::schema::UserStatus;
 use crate::database::user::User;
 use crate::utils::auth::DeviceInfo;
-use crate::utils::errors_catcher::{ErrorResponder, ErrorResponse, ErrorType};
-use crate::utils::utils::random_token;
-use crate::utils::validation::validate_input;
+use crate::utils::errors_catcher::{ErrorResponder, ErrorType};
 
 #[derive(Deserialize, Debug)]
 pub struct SigninData {

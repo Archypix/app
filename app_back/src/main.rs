@@ -2,22 +2,16 @@
 extern crate rocket;
 extern crate tera;
 
-use std::env;
-use diesel::migration::MigrationSource;
-use diesel::prelude::*;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use rocket::http::Method;
-use rocket::response::content;
-use rocket::response::content::RawHtml;
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors, CorsOptions};
-use serde::Deserialize;
+use std::env;
 use user_agent_parser::UserAgentParser;
 
 use crate::api::auth::signin::auth_signin;
 use crate::api::auth::signup::auth_signup;
 use crate::api::auth::status::auth_status;
 use crate::database::database::{get_connection, get_connection_pool};
-use crate::mailing::mailer::{send_email, send_email_async};
 use crate::utils::errors_catcher::{bad_request, internal_error, not_found, unauthorized, unprocessable_entity};
 
 mod api {
@@ -95,8 +89,8 @@ fn cors_options() -> Cors {
         allow_credentials: true,
         ..Default::default()
     }
-    .to_cors()
-    .expect("Error while building CORS")
+        .to_cors()
+        .expect("Error while building CORS")
 }
 
 

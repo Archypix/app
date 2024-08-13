@@ -1,13 +1,12 @@
-use diesel::{allow_tables_to_appear_in_same_query, joinable, Queryable, table};
-use diesel::expression::functions::sql_function;
-use diesel::query_builder::QueryId;
 use diesel::sql_types::{Binary, Nullable, SqlType, VarChar};
+use diesel::{allow_tables_to_appear_in_same_query, joinable, table};
+use diesel_derives::define_sql_function;
 use serde::Serialize;
 
-sql_function! { fn last_insert_id() -> Unsigned<Bigint> }
-sql_function! { fn inet6_ntoa(ip: Nullable<Binary>) -> Nullable<VarChar> }
-sql_function! { fn inet6_aton(ip: Nullable<VarChar>) -> Nullable<Varbinary> }
-sql_function! { fn utc_timestamp() -> Datetime }
+define_sql_function! { fn last_insert_id() -> Unsigned<Bigint> }
+define_sql_function! { fn inet6_ntoa(ip: Nullable<Binary>) -> Nullable<VarChar> }
+define_sql_function! { fn inet6_aton(ip: Nullable<VarChar>) -> Nullable<Varbinary> }
+define_sql_function! { fn utc_timestamp() -> Datetime }
 
 #[derive(Debug, PartialEq, diesel_derive_enum::DbEnum)]
 pub enum UserConfirmAction {

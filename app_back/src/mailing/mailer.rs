@@ -1,5 +1,5 @@
-use std::env;
 use lazy_static::lazy_static;
+use std::env;
 
 use mail_send::mail_builder::MessageBuilder;
 use mail_send::SmtpClientBuilder;
@@ -50,7 +50,7 @@ pub async fn send_email_async(to: (String, String), subject: String, body_text: 
         .text_body(body_text)
         .html_body(body_html);
 
-    let mut connect = SmtpClientBuilder::new(server, server_port)
+    let connect = SmtpClientBuilder::new(server, server_port)
         .implicit_tls(false)
         .credentials((username, password))
         .connect()
