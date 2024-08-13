@@ -1,6 +1,6 @@
 {
   "name": "Archypix Dev Container",
-  "dockerComposeFile": "docker-compose.dev.yml",
+  "dockerComposeFile": "compose.yml",
   "service": "archypix-app-back", // Primary container
   "workspaceFolder": "/app",
   "extensions": [
@@ -25,7 +25,7 @@
     "source=${localWorkspaceFolder}/db,target=/var/lib/mysql,type=bind"
   ],
   "remoteEnv": {
-    "DATABASE_URL": "mysql://archypix:archypix@archypix-app-db:3306/archypix",
+    "DATABASE_URL": "mysql://archypix:archypix@archypix-app-dev-db:3306/archypix",
     "SMTP_SERVER": "email-smtp.eu-north-1.amazonaws.com",
     "SMTP_USERNAME": "",
     "SMTP_PASSWORD": "",
@@ -34,9 +34,9 @@
     "NUXT_PUBLIC_BACKEND_HOST_SSR": "http://archypix-app-back:8000"
   },
   "runServices": [
-    "archypix-app-db",
-    "archypix-app-back",
-    "archypix-front"
+    "archypix-app-dev-db",
+    "archypix-app-dev-back",
+    "archypix-app-dev-front"
   ],
   "workspaceMount": "source=${localWorkspaceFolder}/app_back,target=/app,type=bind,consistency=cached"
 }
