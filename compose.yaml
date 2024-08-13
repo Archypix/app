@@ -1,0 +1,42 @@
+version: '3.3'
+services:
+  archypix-app-db:
+    image: mysql:8.4
+    container_name: archypix-app-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: archypix
+      MYSQL_USER: archypix
+      MYSQL_PASSWORD: archypix
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./db:/var/lib/mysql
+
+  archypix-app-back:
+    build: app_back
+    image: archypix-app-back
+    container_name: archypix-app-back
+    restart: unless-stopped
+    depends_on:
+      - archypix-app-db
+    ports:
+      - "8000:80"
+    environment:
+      - DATABASE_URL=mysql://archypix:archypix@archypix-app-db:3306/archypix
+      - SMTP_SERVER=email-smtp.eu-north-1.amazonaws.com
+      - SMTP_USERNAME=
+      - SMTP_PASSWORD=
+      - FRONTEND_HOST=http://localhost:3000 # for CORS policy
+
+  archypix-front:
+    build: app_front
+    image: archypix-app-front
+    container_name: archypix-app-front
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - NUXT_PUBLIC_BACKEND_HOST=http://127.0.0.1:8000
+      - NUXT_PUBLIC_BACKEND_HOST_SSR=http://archypix-back:80
