@@ -17,7 +17,7 @@ use crate::api::auth::signin::auth_signin;
 use crate::api::auth::signup::auth_signup;
 use crate::api::auth::status::auth_status;
 use crate::database::database::{get_connection, get_connection_pool};
-use crate::mailing::mailer::render_email_context;
+use crate::mailing::mailer::{send_email, send_email_async};
 use crate::utils::errors_catcher::{bad_request, internal_error, not_found, unauthorized, unprocessable_entity};
 
 mod api {
@@ -67,7 +67,8 @@ mod mailing {
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
 #[launch]
-fn rocket() -> _ {
+#[tokio::main]
+async fn rocket() -> _ {
 
     // migrate database
     let mut conn = get_connection();
@@ -78,16 +79,8 @@ fn rocket() -> _ {
         .attach(cors_options())
         .manage(get_connection_pool())
         .manage(UserAgentParser::from_path("./static/user_agent_regexes.yaml").unwrap())
-        .mount("/", routes![auth_signup, auth_signin, auth_status, test_template])
+        .mount("/", routes![auth_signup, auth_signin, auth_status])
         .register("/", catchers![bad_request, unauthorized, not_found, unprocessable_entity, internal_error])
-}
-
-#[get("/test_template/<template>")]
-fn test_template(template: &str) -> RawHtml<String> {
-    let mut context = tera::Context::new();
-    // context.insert("title", title);
-
-    RawHtml(render_email_context(String::from(template), context))
 }
 
 fn cors_options() -> Cors {
