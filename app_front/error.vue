@@ -19,7 +19,7 @@ const handleError = () => clearError({redirect: '/'})
       <template v-if="props?.error?.statusCode === 404">
         <h1>404 - Page Not Found</h1>
         <template v-if="props?.error?.data.rootServerError">
-          <p>This page does not exist on this standalone version of PMCloud, but exists on the PMCloud root server:<br/><a :href="'https://pmcloud.com' + props.error.data.path">{{ 'https://pmcloud.com' + props.error.data.path }}</a></p>
+          <p>This page does not exist on this standalone version of Archypix, but exists on the Archypix root server:<br/><a :href="'https://archypix.com' + props.error.data.path">{{ 'https://archypix.com' + props.error.data.path }}</a></p>
         </template>
         <p v-else>The page you are looking for does not exist.</p>
       </template>

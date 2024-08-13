@@ -4,7 +4,7 @@
 
 <template>
   <div class="root">
-    <h1>Sign up for PMCloud</h1>
+    <h1>Sign up for Archypix</h1>
   </div>
 </template>
 

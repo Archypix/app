@@ -2,7 +2,6 @@
 export default defineNuxtConfig({
   runtimeConfig: {
       public: {
-          rootServer: (/true/i).test(process.env.ROOT_SERVER || ""), // Overrideable at build time only by env ROOT_SERVER
           backendHost: 'http://127.0.0.1:8000', // Overrideable by env NUXT_PUBLIC_BACKEND_HOST
           backendHostSSR: 'http://127.0.0.1:8000', // Overrideable by env NUXT_PUBLIC_BACKEND_HOST_SSR
       }

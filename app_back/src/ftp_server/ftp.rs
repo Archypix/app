@@ -7,7 +7,7 @@ async fn start_ftp_server(){
         Box::new(|| Vfs::new()),
         std::sync::Arc::new(PMAuthenticator{})
     )
-    .greeting("Welcome to your PMCloud FTP file server")
+    .greeting("Welcome to your Archypix FTP file server")
     .passive_ports(50000..65535);
 
     server.listen("127.0.0.1:2121").await;

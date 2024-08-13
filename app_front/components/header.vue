@@ -10,10 +10,10 @@ let isConnected = user.isConnected(false, true);
   <header>
     <div class="left">
       <div class="icon">
-        <img src="/favicon.ico" alt="PMCloud icon">
+        <img src="/favicon.ico" alt="Archypix icon">
       </div>
       <h2>
-        PMCloud
+        Archypix
         <span v-if="!rootServer || true">Standalone</span>
       </h2>
     </div>

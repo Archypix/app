@@ -1,8 +1,7 @@
 [package]
-name = "archypix_app_api"
+name = "archypix_app_back"
 version = "0.1.0"
 edition = "2021"
-
 
 [dependencies]
 async-trait = "0.1.50"

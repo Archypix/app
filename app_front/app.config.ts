@@ -1,5 +1,5 @@
 export default defineAppConfig({
-    title: 'PMCloud',
+    title: 'Archypix',
     theme: {
         dark: true,
         colors: {

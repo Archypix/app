@@ -7,7 +7,7 @@ definePageMeta({
 })
 
 useSeoMeta({
-  title: 'PMCloud Overview',
+  title: 'Archypix Overview',
   ogTitle: 'Overview',
   description: 'An efficient cloud based picture manager that supports automatic grouping of pictures into custom hierarchies, while allowing users to share groups together.',
   ogDescription: 'An efficient cloud based picture manager that supports automatic grouping of pictures into custom hierarchies, while allowing users to share groups together.',

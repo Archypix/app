@@ -43,7 +43,7 @@ pub async fn send_email_async(to: (String, String), subject: String, body_text: 
     let password: String = env::var("SMTP_PASSWORD").expect("SMTP_PASSWORD must be set");
 
     let message = MessageBuilder::new()
-        .from(("PMCloud", "no-reply@pdf4teachers.org"))
+        .from(("Archypix", "no-reply@pdf4teachers.org"))
         .to(vec![to.clone()])
         .subject(subject)
         .text_body(body_text)

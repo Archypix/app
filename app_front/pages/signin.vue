@@ -22,7 +22,7 @@ const onSubmit = () => {
 
 <template>
   <main>
-    <h1>Sign in to PMCloud</h1>
+    <h1>Sign in to Archypix</h1>
     <form>
       <InputInForm name="Email" type="email" aria="Email" v-model:value="email" :small="email_small"
                    small_error/>
