@@ -1,7 +1,7 @@
 {
   "name": "Archypix Dev Container",
   "dockerComposeFile": "compose.yml",
-  "service": "archypix-app-back", // Primary container
+  "service": "archypix-app-dev-back", // Primary container
   "workspaceFolder": "/app",
   "extensions": [
     "rust-lang.rust-analyzer",
