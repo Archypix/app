@@ -1,11 +1,9 @@
-use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl, SelectableHelper};
 use pwhash::bcrypt;
 use rocket::serde::json::Json;
 use rocket::serde::{Deserialize, Serialize};
 
 use crate::database::auth_token::AuthToken;
 use crate::database::database::{DBConn, DBPool};
-use crate::database::schema::users;
 use crate::database::schema::UserStatus;
 use crate::database::user::User;
 use crate::utils::auth::DeviceInfo;
@@ -27,31 +25,30 @@ pub struct SigninResponse {
 pub fn auth_signin(data: Json<SigninData>, db: &rocket::State<DBPool>, device_info: DeviceInfo) -> Result<Json<SigninResponse>, ErrorResponder> {
     let conn: &mut DBConn = &mut db.get().unwrap();
 
-    let user_opt = users::table
-        .filter(users::dsl::email.eq(data.email.clone()))
-        .select(User::as_select())
-        .first::<User>(conn).optional().map_err(|e| {
-        ErrorType::DatabaseError("Failed to get user".to_string(), e).to_responder()
-    })?;
-    if let Some(user) = user_opt {
-        if bcrypt::verify(data.password.clone(), &*user.password_hash) {
-            return match user.status {
-                UserStatus::Banned => {
-                    ErrorType::UserBanned.to_err()
+    let user = User::find_by_email_opt(conn, &data.email)
+        .and_then(|user| {
+            if let Some(user) = user {
+                if bcrypt::verify(data.password.clone(), &*user.password_hash) {
+                    return Ok(user);
                 }
-                UserStatus::Unconfirmed => {
-                    ErrorType::UserUnconfirmed.to_err()
-                }
-                _ => {
-                    let auth_token = AuthToken::insert_token_for_user(conn, &user.id, &device_info, 0)?;
+            }
+            ErrorType::UserNotFound.to_err()
+        })?;
 
-                    Ok(Json(SigninResponse {
-                        user_id: user.id,
-                        auth_token: hex::encode(auth_token),
-                    }))
-                }
-            };
+    return match user.status {
+        UserStatus::Banned => {
+            ErrorType::UserBanned.to_err()
         }
-    }
-    ErrorType::UserNotFound.to_err()
+        UserStatus::Unconfirmed => {
+            ErrorType::UserUnconfirmed.to_err()
+        }
+        _ => {
+            let auth_token = AuthToken::insert_token_for_user(conn, &user.id, &device_info, 0)?;
+
+            Ok(Json(SigninResponse {
+                user_id: user.id,
+                auth_token: hex::encode(auth_token),
+            }))
+        }
+    };
 }

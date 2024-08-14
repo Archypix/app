@@ -1,7 +1,6 @@
-use crate::database::auth_token::AuthToken;
+use crate::database::auth_token::{AuthToken, Confirmation};
 use crate::database::database::DBConn;
 use crate::database::schema::*;
-use crate::database::utils::is_error_duplicate_key;
 use crate::utils::errors_catcher::{ErrorResponder, ErrorType};
 use chrono::NaiveDateTime;
 use diesel::QueryDsl;
@@ -72,15 +71,20 @@ impl User {
             })
     }
 
-    pub(crate) fn create_user(conn: &mut DBConn, name: &str, email: &str, password: &str) -> Result<u32, ErrorResponder> {
-        // Check if the user exists and update only if status is unconfirmed
-        let existing_user: Option<User> = users::table
+    pub fn find_by_email_opt(conn: &mut DBConn, email: &str) -> Result<Option<User>, ErrorResponder> {
+        users::table
             .filter(users::dsl::email.eq(email))
-            .first(conn)
+            .select(User::as_select())
+            .first::<User>(conn)
             .optional()
             .map_err(|e| {
-                ErrorType::DatabaseError("Failed to get already existing user".to_string(), e).to_responder()
-            })?;
+                ErrorType::DatabaseError("Failed to get user from email".to_string(), e).to_responder()
+            })
+    }
+
+    pub(crate) fn create_user(conn: &mut DBConn, name: &str, email: &str, password: &str) -> Result<u32, ErrorResponder> {
+        // Check if the user exists and update only if status is unconfirmed
+        let existing_user = User::find_by_email_opt(conn, email)?;
 
         if let Some(user) = existing_user {
             if user.status != UserStatus::Unconfirmed {
@@ -98,18 +102,8 @@ impl User {
                     ErrorType::DatabaseError("Failed to update user name and password.".to_string(), e).to_responder()
                 })?;
 
-            // Remove all existing confirmations
-            diesel::delete(confirmations::table.filter(confirmations::dsl::user_id.eq(user.id)))
-                .execute(conn)
-                .map_err(|e| {
-                    ErrorType::DatabaseError("Failed to delete existing confirmations".to_string(), e).to_responder()
-                })?;
-            // Remove all existing auth tokens
-            diesel::delete(auth_tokens::table.filter(auth_tokens::dsl::user_id.eq(user.id)))
-                .execute(conn)
-                .map_err(|e| {
-                    ErrorType::DatabaseError("Failed to delete existing auth tokens".to_string(), e).to_responder()
-                })?;
+            // Only the latest singup confirmation is valid
+            Confirmation::mark_all_as_used(conn, &user.id, ConfirmationAction::Signup)?;
 
             return Ok(user.id);
         }
@@ -122,12 +116,9 @@ impl User {
             ))
             .execute(conn)
             .map_err(|e| {
-                if is_error_duplicate_key(&e, "users.email") {
-                    return ErrorType::EmailAlreadyExists.to_responder();
-                }
                 ErrorType::DatabaseError("Failed to insert user".to_string(), e).to_responder()
             })
-            .and_then(|result| {
+            .and_then(|_| {
                 select(last_insert_id()).get_result::<u64>(conn)
                     .map(|id| id as u32)
                     .map_err(|e| {

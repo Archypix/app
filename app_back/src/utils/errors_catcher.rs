@@ -87,6 +87,12 @@ impl ErrorType {
     }
 }
 
+impl From<Error> for ErrorResponder {
+    fn from(value: Error) -> Self {
+        ErrorType::DatabaseError("Diesel error".to_string(), value).to_responder()
+    }
+}
+
 
 #[catch(400)]
 pub fn bad_request() -> ErrorResponder {

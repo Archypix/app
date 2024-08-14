@@ -6,6 +6,7 @@ use crate::database::user::User;
 use crate::utils::auth::{DeviceInfo, UserAuthInfo};
 use crate::utils::errors_catcher::{ErrorResponder, ErrorType};
 use crate::utils::validation::validate_input;
+use diesel::Connection;
 use rocket::serde::json::Json;
 use rocket::serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -41,16 +42,17 @@ pub fn auth_confirm_code(data: Json<ConfirmCodeData>, db: &rocket::State<DBPool>
 
     match data.action {
         ConfirmationAction::Signup => {
-            // Whatever the user status, as long as the code_token and code are valid
-            // and the confirmation is still valid, it is ok to login the user.
-            Confirmation::check_code_and_mark_as_used(conn, &user_id, &data.action, &code_token, &data.code)?;
-            user.switch_status(conn, &UserStatus::Normal)?;
+            conn.transaction::<_, ErrorResponder, _>(|conn| {
+                // It is useless to check if user status is Unconfirmed. Only one signup confirm can exist at a time.
+                Confirmation::check_code_and_mark_as_used(conn, &user_id, &data.action, &code_token, &data.code)?;
+                user.switch_status(conn, &UserStatus::Normal)?;
 
-            // Create auth token and return it
-            let auth_token = AuthToken::insert_token_for_user(conn, &user.id, &device_info, 0)?;
-            Ok(Json(ConfirmResponse {
-                auth_token: Some(hex::encode(auth_token)),
-            }))
+                let auth_token = AuthToken::insert_token_for_user(conn, &user.id, &device_info, 0)?;
+
+                Ok(Json(ConfirmResponse {
+                    auth_token: Some(hex::encode(auth_token)),
+                }))
+            })
         }
         _ => {
             ErrorType::BadRequest.to_err()

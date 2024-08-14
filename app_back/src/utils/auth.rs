@@ -1,6 +1,5 @@
 use std::ops::AddAssign;
 
-use diesel::prelude::*;
 use rocket::form::validate::Contains;
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome};

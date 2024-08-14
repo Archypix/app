@@ -1,5 +1,3 @@
-use rocket::form::Shareable;
-
 pub fn is_error_duplicate_key(error: &diesel::result::Error, key: &str) -> bool {
     use diesel::result::Error;
     use diesel::result::DatabaseErrorKind;
@@ -13,7 +11,6 @@ pub fn is_error_duplicate_key(error: &diesel::result::Error, key: &str) -> bool 
             // Duplicate entry '3-signup-\x00-0' for key 'confirmations.UQ_confirmations'
 
             let error_parts = info.message().split('\'').collect::<Vec<&str>>();
-
             return error_parts.len() > 3 && error_parts[3] == key;
         }
     }

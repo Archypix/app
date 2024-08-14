@@ -5,7 +5,7 @@ use crate::utils::auth::DeviceInfo;
 use crate::utils::errors_catcher::{ErrorResponder, ErrorType};
 use crate::utils::utils::{random_code, random_token};
 use chrono::{NaiveDateTime, TimeDelta, Utc};
-use diesel::QueryDsl;
+use diesel::{delete, QueryDsl};
 use diesel::{insert_into, update, Identifiable, Insertable, Queryable, RunQueryDsl, Selectable};
 use diesel::{ExpressionMethods, OptionalExtension};
 use rocket::Request;
@@ -64,6 +64,15 @@ impl AuthToken {
     pub fn get_auth_token_from_headers(request: &Request<'_>) -> Option<Vec<u8>> {
         request.headers().get_one("X-Auth-Token").map(|s| hex::decode(s).ok()).flatten()
     }
+    pub fn clear_auth_tokens(conn: &mut DBConn, user_id: &u32) -> Result<(), ErrorResponder> {
+        delete(auth_tokens::table)
+            .filter(auth_tokens::dsl::user_id.eq(user_id))
+            .execute(conn)
+            .map(|_| ())
+            .map_err(|e| {
+                ErrorType::DatabaseError("Failed to delete existing auth tokens".to_string(), e).to_responder()
+            })
+    }
 }
 
 
@@ -103,7 +112,7 @@ impl Confirmation {
             .execute(conn)
             .map(|_| (token, code_token, code))
             .or_else(|e| {
-                if is_error_duplicate_key(&e, "confirmations.PRIMARY") || is_error_duplicate_key(&e, "confirmations.UQ_confirmations") && try_count < 3 {
+                if (is_error_duplicate_key(&e, "confirmations.PRIMARY") || is_error_duplicate_key(&e, "confirmations.UQ_confirmations")) && try_count < 3 {
                     println!("Confirmation token already exists, trying again.");
                     return Confirmation::insert_confirmation(conn, user_id, action, device_info, try_count + 1);
                 }
@@ -142,6 +151,19 @@ impl Confirmation {
             .map(|_| ())
             .map_err(|e| {
                 ErrorType::DatabaseError("Failed to mark confirmation as used".to_string(), e).to_responder()
+            })
+    }
+    pub fn mark_all_as_used(conn: &mut DBConn, user_id: &u32, action: ConfirmationAction) -> Result<(), ErrorResponder> {
+        update(confirmations::table)
+            .filter(confirmations::dsl::user_id.eq(user_id))
+            .filter(confirmations::dsl::action.eq(action))
+            .set((
+                confirmations::dsl::used.eq(true),
+            ))
+            .execute(conn)
+            .map(|_| ())
+            .map_err(|e| {
+                ErrorType::DatabaseError("Failed to mark all confirmations as used".to_string(), e).to_responder()
             })
     }
 }
