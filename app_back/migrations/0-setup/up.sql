@@ -1,18 +1,14 @@
 CREATE TABLE users
 (
     CONSTRAINT PK_users PRIMARY KEY (id),
-    id                  INT UNSIGNED AUTO_INCREMENT,
-    name                VARCHAR(32)                                       NOT NULL,
-    email               VARCHAR(256)                                      NOT NULL UNIQUE,
-    password_hash       CHAR(60)                                          NOT NULL,
-    creation_date       DATETIME                                          NOT NULL DEFAULT (UTC_TIMESTAMP()),
-    confirm_date        DATETIME                                          NOT NULL DEFAULT (UTC_TIMESTAMP()),
-    confirm_action      ENUM ('signup', 'signin', 'delete_account')       NOT NULL DEFAULT 'signup',
-    confirm_token       BINARY(16)                                                 DEFAULT NULL,
-    confirm_code        SMALLINT UNSIGNED                                          DEFAULT NULL,
-    confirm_code_trials TINYINT UNSIGNED                                  NOT NULL DEFAULT 0,
-    status              ENUM ('unconfirmed', 'normal', 'banned', 'admin') NOT NULL DEFAULT 'unconfirmed',
-    storage_count_mo    INT UNSIGNED                                      NOT NULL DEFAULT 0
+    id               INT UNSIGNED AUTO_INCREMENT,
+    name             VARCHAR(32)                                       NOT NULL,
+    email            VARCHAR(256)                                      NOT NULL UNIQUE,
+    password_hash    CHAR(60)                                          NOT NULL,
+    creation_date    DATETIME                                          NOT NULL DEFAULT (UTC_TIMESTAMP()),
+    status           ENUM ('unconfirmed', 'normal', 'banned', 'admin') NOT NULL DEFAULT 'unconfirmed',
+    storage_count_ko BIGINT UNSIGNED                                   NOT NULL DEFAULT 0,
+    storage_limit_mo INT UNSIGNED                                      NOT NULL DEFAULT 0
 );
 
 CREATE TABLE auth_tokens
@@ -24,6 +20,29 @@ CREATE TABLE auth_tokens
     last_use_date DATETIME     NOT NULL DEFAULT (UTC_TIMESTAMP()),
     device_string VARCHAR(128),
     ip_address    VARBINARY(16),
+    FOREIGN KEY (user_id) REFERENCES users (id)
+);
+
+CREATE TABLE confirmations
+(
+    CONSTRAINT PK_confirmations PRIMARY KEY (user_id, action, token),
+    user_id       INT UNSIGNED                                NOT NULL,
+    action        ENUM ('signup', 'signin', 'delete_account') NOT NULL,
+    date          DATETIME                                    NOT NULL DEFAULT (UTC_TIMESTAMP()),
+    token         BINARY(16)                                  NOT NULL,
+    code          SMALLINT UNSIGNED                           NOT NULL,
+    code_trials   TINYINT UNSIGNED                            NOT NULL DEFAULT 0,
+    device_string VARCHAR(128),
+    ip_address    VARBINARY(16),
+    FOREIGN KEY (user_id) REFERENCES users (id)
+);
+
+CREATE TABLE totp_secrets
+(
+    CONSTRAINT PK_totp_secrets PRIMARY KEY (user_id),
+    user_id       INT UNSIGNED NOT NULL,
+    creation_date DATETIME     NOT NULL DEFAULT (UTC_TIMESTAMP()),
+    secret        BINARY(20)   NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
@@ -62,6 +81,8 @@ CREATE TABLE pictures
 (
     CONSTRAINT PK_photos PRIMARY KEY (id),
     id                BIGINT UNSIGNED AUTO_INCREMENT,
+    name    VARCHAR(64) NOT NULL,
+    comment TEXT,
     owner_id          INT UNSIGNED                                                                                                                                             NOT NULL,
     author_id         INT UNSIGNED                                                                                                                                             NOT NULL,
     deleted_date      DATETIME                                                                                                                                                          DEFAULT NULL,
@@ -97,28 +118,29 @@ CREATE TABLE pictures_tags
 CREATE TABLE arrangements
 (
     CONSTRAINT PK_arrangements PRIMARY KEY (id),
-    id               INT UNSIGNED AUTO_INCREMENT,
-    user_id          INT UNSIGNED NOT NULL,
-    name             VARCHAR(32)  NOT NULL,
-    match_conversion BOOLEAN      NOT NULL DEFAULT FALSE,
-    strategy         BLOB         NOT NULL,
+    id                      INT UNSIGNED AUTO_INCREMENT NOT NULL,
+    user_id                 INT UNSIGNED                NOT NULL,
+    name                    VARCHAR(32)                 NOT NULL,
+    strong_match_conversion BOOLEAN                     NOT NULL DEFAULT FALSE,
+    strategy                BLOB                        NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
 CREATE TABLE `groups`
 (
     CONSTRAINT PK_groups PRIMARY KEY (id),
-    id             INT UNSIGNED AUTO_INCREMENT,
-    arrangement_id INT UNSIGNED NOT NULL,
-    name           VARCHAR(32)  NOT NULL,
+    id                     INT UNSIGNED AUTO_INCREMENT NOT NULL,
+    arrangement_id         INT UNSIGNED                NOT NULL,
+    share_match_conversion BOOLEAN                     NOT NULL DEFAULT FALSE,
+    name                   VARCHAR(32)                 NOT NULL,
     FOREIGN KEY (arrangement_id) REFERENCES arrangements (id)
 );
 
 CREATE TABLE groups_pictures
 (
     CONSTRAINT PK_groups_pictures PRIMARY KEY (group_id, picture_id),
-    group_id   INT UNSIGNED,
-    picture_id BIGINT UNSIGNED,
+    group_id   INT UNSIGNED    NOT NULL,
+    picture_id BIGINT UNSIGNED NOT NULL,
     FOREIGN KEY (group_id) REFERENCES `groups` (id),
     FOREIGN KEY (picture_id) REFERENCES pictures (id)
 );
@@ -149,20 +171,46 @@ CREATE TABLE shared_groups
 CREATE TABLE hierarchies
 (
     CONSTRAINT PK_hierarchy PRIMARY KEY (id),
-    id               INT UNSIGNED AUTO_INCREMENT,
-    user_id          INT UNSIGNED NOT NULL,
-    name             VARCHAR(32)  NOT NULL,
-    match_conversion BOOLEAN      NOT NULL DEFAULT FALSE,
+    id      INT UNSIGNED AUTO_INCREMENT NOT NULL,
+    user_id INT UNSIGNED                NOT NULL,
+    name    VARCHAR(32)                 NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
 CREATE TABLE hierarchies_arrangements
 (
     CONSTRAINT PK_hierarchy_groups PRIMARY KEY (hierarchy_id, arrangements_id),
-    hierarchy_id    INT UNSIGNED,
-    arrangements_id INT UNSIGNED,
-    parent_group_id INT UNSIGNED NOT NULL,
+    hierarchy_id    INT UNSIGNED NOT NULL,
+    arrangements_id INT UNSIGNED NOT NULL,
+    parent_group_id INT UNSIGNED,
     FOREIGN KEY (hierarchy_id) REFERENCES hierarchies (id),
     FOREIGN KEY (arrangements_id) REFERENCES arrangements (id),
     FOREIGN KEY (parent_group_id) REFERENCES `groups` (id)
+);
+
+CREATE TABLE duplicate_groups
+(
+    CONSTRAINT PK_duplicate_groups PRIMARY KEY (id),
+    id      INT UNSIGNED AUTO_INCREMENT NOT NULL,
+    user_id INT UNSIGNED                NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users (id)
+);
+
+CREATE TABLE duplicates
+(
+    CONSTRAINT PK_duplicates PRIMARY KEY (group_id, picture_id),
+    group_id   INT UNSIGNED    NOT NULL,
+    picture_id BIGINT UNSIGNED NOT NULL,
+    FOREIGN KEY (group_id) REFERENCES duplicate_groups (id),
+    FOREIGN KEY (picture_id) REFERENCES pictures (id)
+);
+
+CREATE TABLE ratings
+(
+    CONSTRAINT PK_ratings PRIMARY KEY (user_id, picture_id),
+    user_id    INT UNSIGNED    NOT NULL,
+    picture_id BIGINT UNSIGNED NOT NULL,
+    rating     TINYINT         NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users (id),
+    FOREIGN KEY (picture_id) REFERENCES pictures (id)
 );

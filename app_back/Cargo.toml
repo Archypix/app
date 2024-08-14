@@ -28,3 +28,4 @@ mail-send = "0.4.7"
 rocket_cors = "0.6.0"
 tera = "1.19.1"
 lazy_static = "1.4.0"
+totp-rs = { version = "5.6.0", features = ["qr"] }

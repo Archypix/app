@@ -29,6 +29,7 @@ mod api {
 
 mod database {
     pub mod database;
+    pub mod duplicates;
     pub mod schema;
     pub mod user;
     pub mod auth_token;
@@ -36,6 +37,7 @@ mod database {
     pub mod picture;
     pub mod group;
     pub mod hierarchy;
+    pub mod utils;
 }
 
 mod ftp_server {

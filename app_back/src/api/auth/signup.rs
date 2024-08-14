@@ -6,13 +6,15 @@ use serde::Serialize;
 use std::env;
 use validator::Validate;
 
-use crate::database::auth_token::AuthToken;
+use crate::database::auth_token::{AuthToken, Confirmation};
 use crate::database::database::DBPool;
-use crate::database::schema::{last_insert_id, users::dsl::*};
+use crate::database::schema::{last_insert_id, users::dsl::*, ConfirmationAction};
+use crate::database::user::User;
+use crate::database::utils::is_error_duplicate_key;
 use crate::mailing::mailer::send_rendered_email;
 use crate::utils::auth::DeviceInfo;
 use crate::utils::errors_catcher::{ErrorResponder, ErrorType};
-use crate::utils::utils::{left_pad, random_code, random_token};
+use crate::utils::utils::{left_pad, random_token};
 use crate::utils::validation::validate_input;
 
 #[derive(Deserialize, Debug, Validate)]
@@ -36,46 +38,25 @@ pub fn auth_signup(data: Json<SignupData>, db: &rocket::State<DBPool>, device_in
     validate_input(&data)?;
     let conn = &mut db.get().unwrap();
 
-    let conf_code = random_code(4) as u16;
-    let conf_code_str = left_pad(&conf_code.to_string(), '0', 4);
-    let conf_token = random_token(16);
+    // Inserting user
+    let uid = User::create_user(conn, &data.name, &data.email, &data.password)?;
 
-    let result = insert_into(users)
-        .values((
-            name.eq::<String>(data.name.clone()),
-            email.eq(data.email.clone()),
-            password_hash.eq(bcrypt::hash(data.password.clone()).unwrap()),
-            confirm_code.eq(conf_code),
-            confirm_token.eq(conf_token.clone()),
-            // confirm_action = 'signup', status = 'unconfirmed'
-        ))
-        .execute(conn).map_err(|e| {
-        if let diesel::result::Error::DatabaseError(kind, _) = e {
-            if let DatabaseErrorKind::UniqueViolation = kind {
-                return ErrorType::EmailAlreadyExists.to_responder();
-            }
-        }
-        ErrorType::DatabaseError("Failed to insert user".to_string(), e).to_responder()
-    })?;
-    if result == 0 {
-        return ErrorType::InvalidInput("Failed to insert user.".to_string()).to_err();
-    }
-    let uid = select(last_insert_id()).get_result::<u64>(conn).map_err(|e| {
-        ErrorType::DatabaseError("Failed to get last insert id".to_string(), e).to_responder()
-    })? as u32;
+    // Inserting confirmation
+    let (confirm_token, confirm_code) = Confirmation::insert_confirmation(conn, uid, ConfirmationAction::Signup, &device_info)?;
+    let confirm_code_str = left_pad(&confirm_code.to_string(), '0', 4);
+
+    // Sending email
     let signup_url = format!("{}/signup/confirm?id={}&token={}",
-                             env::var("FRONTEND_HOST").expect("FRONTEND_HOST must be set"), uid, hex::encode(conf_token.clone()));
-
+                             env::var("FRONTEND_HOST").expect("FRONTEND_HOST must be set"), uid, hex::encode(&confirm_token));
     let subject = "Confirm your email address".to_string();
-
     let mut context = tera::Context::new();
     context.insert("name", &data.name);
     context.insert("url", &signup_url);
-    context.insert("code", &conf_code_str);
-    context.insert("archypix_url", &env::var("FRONTEND_HOST").expect("FRONTEND_HOST must be set"));
+    context.insert("code", &confirm_code_str);
     send_rendered_email((data.name.clone(), data.email.clone()), subject, "confirm_signup".to_string(), context);
 
-    let auth_token = AuthToken::insert_token_for_user(conn, uid, device_info)?;
+    // Inserting auth token & returning
+    let auth_token = AuthToken::insert_token_for_user(conn, uid, &device_info)?;
     Ok(Json(SignupResponse {
         user_id: uid,
         auth_token: hex::encode(auth_token),

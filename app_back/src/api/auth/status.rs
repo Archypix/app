@@ -3,7 +3,7 @@ use rocket::serde::Serialize;
 
 use crate::database::schema::UserStatus;
 use crate::database::user::User;
-use crate::utils::errors_catcher::ErrorResponder;
+use crate::utils::errors_catcher::{ErrorResponder, ErrorType};
 
 #[derive(Serialize, Debug)]
 pub struct StatusResponse {
@@ -13,10 +13,11 @@ pub struct StatusResponse {
 }
 
 #[get("/auth/status")]
-pub fn auth_status(user: User) -> Result<Json<StatusResponse>, ErrorResponder> {
-    return Ok(Json(StatusResponse {
+pub fn auth_status(user: Result<User, ErrorResponder>) -> Result<Json<StatusResponse>, ErrorResponder> {
+    let user = user?;
+    Ok(Json(StatusResponse {
         name: user.name,
         email: user.email,
         status: user.status,
-    }));
+    }))
 }

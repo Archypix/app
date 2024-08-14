@@ -4,7 +4,7 @@ use rocket::serde::json::Json;
 use rocket::Request;
 use serde::Serialize;
 
-#[derive(Responder)]
+#[derive(Responder, Debug)]
 pub enum ErrorResponder {
     #[response(status = 400, content_type = "json")]
     BadRequest(Json<ErrorResponse>),
@@ -18,13 +18,13 @@ pub enum ErrorResponder {
     InternalError(Json<ErrorResponse>),
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct ErrorResponse {
     pub error_type: ErrorTypeKind,
     pub message: String,
 }
 
-#[derive(EnumKind)]
+#[derive(EnumKind, Debug)]
 #[enum_kind(ErrorTypeKind, derive(Serialize))]
 pub enum ErrorType {
     BadRequest,

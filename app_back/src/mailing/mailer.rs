@@ -26,7 +26,8 @@ pub fn send_rendered_email(to: (String, String), subject: String, template: Stri
     let html = render_email_context(template, context);
     send_email(to, subject, text, html);
 }
-fn render_email_context(template: String, context: Context) -> String {
+fn render_email_context(template: String, mut context: Context) -> String {
+    context.insert("archypix_url", &env::var("FRONTEND_HOST").expect("FRONTEND_HOST must be set"));
     TEMPLATES.render(format!("{}.html", template).as_str(), &context)
             .expect("Unable to render email template.")
 }

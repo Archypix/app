@@ -1,6 +1,12 @@
+DROP TABLE IF EXISTS __diesel_schema_migrations;
 DROP TABLE IF EXISTS auth_tokens;
+DROP TABLE IF EXISTS confirmations;
+DROP TABLE IF EXISTS totp_secrets;
 DROP TABLE IF EXISTS shares_auto_accept;
 DROP TABLE IF EXISTS pictures_tags;
+DROP TABLE IF EXISTS duplicates;
+DROP TABLE IF EXISTS duplicate_groups;
+DROP TABLE IF EXISTS ratings;
 DROP TABLE IF EXISTS tags;
 DROP TABLE IF EXISTS tag_groups;
 DROP TABLE IF EXISTS groups_pictures;

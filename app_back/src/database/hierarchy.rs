@@ -1,7 +1,7 @@
 use diesel::{Associations, Identifiable, Queryable, Selectable};
 
-use crate::database::{group::{Arrangement, Group}, user::User};
 use crate::database::schema::*;
+use crate::database::{group::{Arrangement, Group}, user::User};
 
 #[derive(Queryable, Selectable, Identifiable, Associations, Debug, PartialEq)]
 #[diesel(primary_key(id))]
@@ -11,7 +11,6 @@ pub struct Hierarchy {
     pub id: u32,
     pub user_id: u32,
     pub name: String,
-    pub match_conversion: bool,
 }
 
 #[derive(Queryable, Selectable, Identifiable, Associations, Debug, PartialEq)]

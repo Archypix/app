@@ -1,6 +1,6 @@
-use diesel::{Associations, Identifiable, Queryable, Selectable};
 use crate::database::schema::*;
-use crate::database::{user::User, picture::Picture};
+use crate::database::{picture::Picture, user::User};
+use diesel::{Associations, Identifiable, Queryable, Selectable};
 
 #[derive(Queryable, Selectable, Identifiable, Associations, Debug, PartialEq)]
 #[diesel(primary_key(id))]
@@ -10,7 +10,7 @@ pub struct Arrangement {
     pub id: u32,
     pub user_id: u32,
     pub name: String,
-    pub match_conversion: bool,
+    pub strong_match_conversion: bool,
     pub strategy: Vec<u8>,
 }
 
@@ -21,8 +21,8 @@ pub struct Arrangement {
 pub struct Group {
     pub id: u32,
     pub arrangement_id: u32,
+    pub share_match_conversion: bool,
     pub name: String,
-    pub share_link: Option<u64>,
 }
 
 #[derive(Queryable, Selectable, Identifiable, Associations, Debug, PartialEq)]

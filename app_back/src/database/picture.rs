@@ -12,6 +12,8 @@ use crate::database::user::User;
 #[diesel(table_name = pictures)]
 pub struct Picture {
     pub id: u64,
+    pub name: String,
+    pub comment: String,
     pub owner_id: u32,
     pub author_id: u32,
     pub deleted_date: Option<NaiveDateTime>,
@@ -38,3 +40,15 @@ pub struct Picture {
 }
 
 impl Picture {}
+
+
+#[derive(Queryable, Selectable, Identifiable, Associations, Debug, PartialEq)]
+#[diesel(primary_key(user_id, picture_id))]
+#[diesel(belongs_to(User))]
+#[diesel(belongs_to(Picture))]
+#[diesel(table_name = ratings)]
+pub struct Rating {
+    pub user_id: u32,
+    pub picture_id: u64,
+    pub rating: i8,
+}

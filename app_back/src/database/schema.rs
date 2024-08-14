@@ -8,13 +8,6 @@ define_sql_function! { fn inet6_ntoa(ip: Nullable<Binary>) -> Nullable<VarChar> 
 define_sql_function! { fn inet6_aton(ip: Nullable<VarChar>) -> Nullable<Varbinary> }
 define_sql_function! { fn utc_timestamp() -> Datetime }
 
-#[derive(Debug, PartialEq, diesel_derive_enum::DbEnum)]
-pub enum UserConfirmAction {
-    Signup,
-    Signin,
-    DeleteAccount,
-}
-
 #[derive(Debug, PartialEq, Serialize, diesel_derive_enum::DbEnum)]
 pub enum UserStatus {
     Unconfirmed,
@@ -24,7 +17,7 @@ pub enum UserStatus {
 }
 table! {
     use diesel::sql_types::*;
-    use super::{UserConfirmActionMapping, UserStatusMapping};
+    use super::UserStatusMapping;
     users (id) {
         id -> Unsigned<Integer>,
         name -> Varchar,
@@ -32,14 +25,9 @@ table! {
         // 60 character
         password_hash -> Char,
         creation_date -> Datetime,
-        confirm_date -> Datetime,
-        confirm_action -> UserConfirmActionMapping,
-        // 16 byte
-        confirm_token -> Nullable<Binary>,
-        confirm_code -> Nullable<Unsigned<Smallint>>,
-        confirm_code_trials -> Unsigned<Tinyint>,
         status -> UserStatusMapping,
-        storage_count_mo -> Unsigned<Integer>,
+        storage_count_ko -> Unsigned<BigInt>,
+        storage_limit_mo -> Unsigned<Integer>,
     }
 }
 
@@ -55,6 +43,41 @@ table! {
 }
 joinable!(auth_tokens -> users (user_id));
 allow_tables_to_appear_in_same_query!(auth_tokens, users);
+
+#[derive(Debug, PartialEq, diesel_derive_enum::DbEnum)]
+pub enum ConfirmationAction {
+    Signup,
+    Signin,
+    DeleteAccount,
+}
+table! {
+    use diesel::sql_types::*;
+    use super::ConfirmationActionMapping;
+    confirmations (user_id, action, token) {
+        user_id -> Unsigned<Integer>,
+        // 16 byte
+        token -> Binary,
+        action -> ConfirmationActionMapping,
+        date -> Datetime,
+        code -> Unsigned<Smallint>,
+        code_trials -> Unsigned<Tinyint>,
+        device_string -> Nullable<Varchar>,
+        ip_address -> Nullable<Varbinary>,
+    }
+}
+joinable!(confirmations -> users (user_id));
+allow_tables_to_appear_in_same_query!(confirmations, users);
+
+table! {
+    totp_secrets (user_id) {
+        user_id -> Unsigned<Integer>,
+        creation_date -> Datetime,
+        // 20 byte
+        secret -> Binary,
+    }
+}
+joinable!(totp_secrets -> users (user_id));
+allow_tables_to_appear_in_same_query!(totp_secrets, users);
 
 table! {
     shares_auto_accept (user_id_acceptor, user_id_sharer) {
@@ -109,6 +132,8 @@ table! {
     use super::PictureOrientationMapping;
     pictures (id) {
         id -> Unsigned<BigInt>,
+        name -> Varchar,
+        comment -> Text,
         owner_id -> Unsigned<Integer>,
         author_id -> Unsigned<Integer>,
         deleted_date -> Nullable<Datetime>,
@@ -150,7 +175,7 @@ table! {
         id -> Unsigned<Integer>,
         user_id -> Unsigned<Integer>,
         name -> Varchar,
-        match_conversion -> Bool,
+        strong_match_conversion -> Bool,
         strategy -> Blob,
     }
 }
@@ -161,8 +186,8 @@ table! {
     groups (id) {
         id -> Unsigned<Integer>,
         arrangement_id -> Unsigned<Integer>,
+        share_match_conversion -> Bool,
         name -> Varchar,
-        share_link -> Nullable<Unsigned<BigInt>>,
     }
 }
 joinable!(groups -> arrangements (arrangement_id));
@@ -211,7 +236,6 @@ table! {
         id -> Unsigned<Integer>,
         user_id -> Unsigned<Integer>,
         name -> Varchar,
-        match_conversion -> Bool,
     }
 }
 joinable!(hierarchies -> users (user_id));
@@ -230,3 +254,35 @@ joinable!(hierarchies_arrangements -> groups (parent_group_id));
 allow_tables_to_appear_in_same_query!(hierarchies_arrangements, hierarchies);
 allow_tables_to_appear_in_same_query!(hierarchies_arrangements, arrangements);
 allow_tables_to_appear_in_same_query!(hierarchies_arrangements, groups);
+
+table! {
+    duplicate_groups (id) {
+        id -> Unsigned<Integer>,
+        user_id -> Unsigned<Integer>,
+    }
+}
+joinable!(duplicate_groups -> users (user_id));
+allow_tables_to_appear_in_same_query!(duplicate_groups, users);
+
+table! {
+    duplicates (group_id, picture_id) {
+        group_id -> Unsigned<Integer>,
+        picture_id -> Unsigned<BigInt>,
+    }
+}
+joinable!(duplicates -> duplicate_groups (group_id));
+joinable!(duplicates -> pictures (picture_id));
+allow_tables_to_appear_in_same_query!(duplicates, duplicate_groups);
+allow_tables_to_appear_in_same_query!(duplicates, pictures);
+
+table! {
+    ratings (user_id, picture_id) {
+        user_id -> Unsigned<Integer>,
+        picture_id -> Unsigned<BigInt>,
+        rating -> Unsigned<TinyInt>,
+    }
+}
+joinable!(ratings -> users (user_id));
+joinable!(ratings -> pictures (picture_id));
+allow_tables_to_appear_in_same_query!(ratings, users);
+allow_tables_to_appear_in_same_query!(ratings, pictures);

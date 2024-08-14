@@ -11,17 +11,18 @@ use crate::database::auth_token::AuthToken;
 use crate::database::database::DBPool;
 use crate::database::schema::*;
 use crate::database::user::User;
+use crate::utils::errors_catcher::{ErrorResponder, ErrorType};
 
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for User {
-    type Error = ();
+    type Error = ErrorResponder;
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         // get user_id and auth_token from request headers
         let user_id = request.headers().get_one("X-User-Id").map(|s| s.parse::<u32>().ok()).flatten();
         let auth_token = request.headers().get_one("X-Auth-Token").map(|s| hex::decode(s).ok()).flatten();
         if user_id.is_none() || auth_token.is_none() {
-            return Outcome::Error((Status::Unauthorized, ()));
+            return Outcome::Error((Status::Unauthorized, ErrorType::UserNotFound.to_responder()));
         }
 
         let db: &DBPool = request.rocket().state::<DBPool>().unwrap();
@@ -34,13 +35,20 @@ impl<'r> FromRequest<'r> for User {
             .first::<(User, Option<AuthToken>)>(conn);
 
         if let Some((user, Some(auth))) = result.ok() {
+            if user.status == UserStatus::Unconfirmed {
+                return Outcome::Error((Status::Unauthorized, ErrorType::UserUnconfirmed.to_responder()));
+            }
+            if user.status == UserStatus::Banned {
+                return Outcome::Error((Status::Unauthorized, ErrorType::UserBanned.to_responder()));
+            }
+
             let result = auth.update_last_use_date(conn);
             if result.is_err() {
                 // TODO: log the error but keep the response as successful
             }
             return Outcome::Success(user);
         }
-        Outcome::Error((Status::Unauthorized, ()))
+        Outcome::Error((Status::Unauthorized, ErrorType::UserNotFound.to_responder()))
     }
 }
 
