@@ -3,7 +3,7 @@ use rocket::serde::Serialize;
 
 use crate::database::schema::UserStatus;
 use crate::database::user::User;
-use crate::utils::errors_catcher::{ErrorResponder, ErrorType};
+use crate::utils::errors_catcher::ErrorResponder;
 
 #[derive(Serialize, Debug)]
 pub struct StatusResponse {

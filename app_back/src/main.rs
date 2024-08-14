@@ -2,17 +2,17 @@
 extern crate rocket;
 extern crate tera;
 
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-use rocket::http::Method;
-use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors, CorsOptions};
-use std::env;
-use user_agent_parser::UserAgentParser;
-
+use crate::api::auth::confirm::auth_confirm_code;
 use crate::api::auth::signin::auth_signin;
 use crate::api::auth::signup::auth_signup;
 use crate::api::auth::status::auth_status;
 use crate::database::database::{get_connection, get_connection_pool};
 use crate::utils::errors_catcher::{bad_request, internal_error, not_found, unauthorized, unprocessable_entity};
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use rocket::http::Method;
+use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors, CorsOptions};
+use std::env;
+use user_agent_parser::UserAgentParser;
 
 mod api {
     pub mod admin {
@@ -75,7 +75,7 @@ async fn rocket() -> _ {
         .attach(cors_options())
         .manage(get_connection_pool())
         .manage(UserAgentParser::from_path("./static/user_agent_regexes.yaml").unwrap())
-        .mount("/", routes![auth_signup, auth_signin, auth_status])
+        .mount("/", routes![auth_signup, auth_signin, auth_status, auth_confirm_code])
         .register("/", catchers![bad_request, unauthorized, not_found, unprocessable_entity, internal_error])
 }
 

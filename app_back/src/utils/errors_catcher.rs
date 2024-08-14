@@ -34,12 +34,15 @@ pub enum ErrorType {
     InternalError,
     // Form validation (see UnprocessableEntity for type check related errors)
     InvalidInput(String),
-    // Sign in / status types
+    // User request guard
     UserNotFound,
     UserBanned,
     UserUnconfirmed,
     // Sign up types
     EmailAlreadyExists,
+    // Confirm
+    ConfirmationAlreadyUsed,
+    ConfirmationNotFound,
     // Admin
     UserNotAdmin,
     // Database error
@@ -67,6 +70,9 @@ impl ErrorType {
             ErrorType::UserUnconfirmed => ErrorResponder::Unauthorized(Self::res("User is not confirmed".to_string(), kind)),
             // Sign up types
             ErrorType::EmailAlreadyExists => ErrorResponder::Unauthorized(Self::res("Email already exists".to_string(), kind)),
+            // Confirm
+            ErrorType::ConfirmationAlreadyUsed => ErrorResponder::Unauthorized(Self::res("Confirmation code/token already used".to_string(), kind)),
+            ErrorType::ConfirmationNotFound => ErrorResponder::Unauthorized(Self::res("Invalid code/token".to_string(), kind)),
             // Admin
             ErrorType::UserNotAdmin => ErrorResponder::Unauthorized(Self::res("User is not an admin".to_string(), kind)),
             // Database error

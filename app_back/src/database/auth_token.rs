@@ -5,8 +5,10 @@ use crate::utils::auth::DeviceInfo;
 use crate::utils::errors_catcher::{ErrorResponder, ErrorType};
 use crate::utils::utils::{random_code, random_token};
 use chrono::{NaiveDateTime, TimeDelta, Utc};
-use diesel::ExpressionMethods;
+use diesel::QueryDsl;
 use diesel::{insert_into, update, Identifiable, Insertable, Queryable, RunQueryDsl, Selectable};
+use diesel::{ExpressionMethods, OptionalExtension};
+use rocket::Request;
 
 #[derive(Queryable, Selectable, Identifiable, Insertable, Debug, PartialEq)]
 #[diesel(primary_key(user_id, token))]
@@ -22,11 +24,11 @@ pub struct AuthToken {
 }
 
 impl AuthToken {
-    pub(crate) fn insert_token_for_user(conn: &mut DBConn, user_id: u32, device_info: &DeviceInfo) -> Result<Vec<u8>, ErrorResponder> {
+    pub(crate) fn insert_token_for_user(conn: &mut DBConn, user_id: &u32, device_info: &DeviceInfo) -> Result<Vec<u8>, ErrorResponder> {
         let auth_token = random_token(32);
         insert_into(auth_tokens::table)
             .values((
-                auth_tokens::dsl::user_id.eq::<u32>(user_id),
+                auth_tokens::dsl::user_id.eq(user_id),
                 auth_tokens::dsl::token.eq(&auth_token),
                 auth_tokens::dsl::device_string.eq(&device_info.device_string),
                 auth_tokens::dsl::ip_address.eq(inet6_aton(&device_info.ip_address))
@@ -58,6 +60,9 @@ impl AuthToken {
         }
         Ok(())
     }
+    pub fn get_auth_token_from_headers(request: &Request<'_>) -> Option<Vec<u8>> {
+        request.headers().get_one("X-Auth-Token").map(|s| hex::decode(s).ok()).flatten()
+    }
 }
 
 
@@ -68,8 +73,10 @@ impl AuthToken {
 pub struct Confirmation {
     pub user_id: u32,
     pub action: ConfirmationAction,
+    pub used: bool,
     pub date: NaiveDateTime,
     pub token: Vec<u8>,
+    pub code_token: Vec<u8>,
     pub code: u16,
     pub code_trials: u8,
     pub device_string: Option<String>,
@@ -77,27 +84,63 @@ pub struct Confirmation {
 }
 
 impl Confirmation {
-    pub(crate) fn insert_confirmation(conn: &mut DBConn, user_id: u32, action: ConfirmationAction, device_info: &DeviceInfo) -> Result<(Vec<u8>, u16), ErrorResponder> {
+    pub(crate) fn insert_confirmation(conn: &mut DBConn, user_id: u32, action: ConfirmationAction, device_info: &DeviceInfo) -> Result<(Vec<u8>, Vec<u8>, u16), ErrorResponder> {
         let token = random_token(16);
+        let code_token = random_token(16);
         let code = random_code(4) as u16;
 
         insert_into(confirmations::table)
             .values((
                 confirmations::dsl::user_id.eq::<u32>(user_id),
-                confirmations::dsl::token.eq(&token),
                 confirmations::dsl::action.eq(&action),
+                confirmations::dsl::token.eq(&token),
+                confirmations::dsl::code_token.eq(&code_token),
                 confirmations::dsl::code.eq(&code),
                 confirmations::dsl::device_string.eq(&device_info.device_string),
                 confirmations::dsl::ip_address.eq(inet6_aton(&device_info.ip_address))
             ))
             .execute(conn)
-            .map(|_| (token, code))
+            .map(|_| (token, code_token, code))
             .or_else(|e| {
                 if is_error_duplicate_key(&e, "confirmations.token") {
                     println!("Confirmation token already exists, trying again.");
                     return Confirmation::insert_confirmation(conn, user_id, action, device_info);
                 }
                 Err(ErrorType::DatabaseError("Failed to insert confirmation".to_string(), e).to_responder())
+            })
+    }
+    pub fn check_code_and_mark_as_used(conn: &mut DBConn, user_id: &u32, action: &ConfirmationAction, code_token: &Vec<u8>, code: &u16) -> Result<(), ErrorResponder> {
+        let confirmation = confirmations::table
+            .filter(confirmations::dsl::user_id.eq(user_id))
+            .filter(confirmations::dsl::action.eq(action))
+            .filter(confirmations::dsl::code_token.eq(code_token))
+            .filter(confirmations::dsl::code.eq(code))
+            .first::<Confirmation>(conn)
+            .optional()
+            .map_err(|e| {
+                ErrorType::DatabaseError("Failed to get confirmation".to_string(), e).to_responder()
+            })?;
+        if let Some(confirmation) = confirmation {
+            if confirmation.used {
+                return Err(ErrorType::ConfirmationAlreadyUsed.to_responder());
+            }
+            confirmation.mark_as_used(conn)?;
+            return Ok(());
+        }
+        Err(ErrorType::ConfirmationNotFound.to_responder())
+    }
+    pub fn mark_as_used(&self, conn: &mut DBConn) -> Result<(), ErrorResponder> {
+        update(confirmations::table)
+            .filter(confirmations::dsl::user_id.eq(&self.user_id))
+            .filter(confirmations::dsl::action.eq(&self.action))
+            .filter(confirmations::dsl::token.eq(&self.token))
+            .set((
+                confirmations::dsl::used.eq(true),
+            ))
+            .execute(conn)
+            .map(|_| ())
+            .map_err(|e| {
+                ErrorType::DatabaseError("Failed to mark confirmation as used".to_string(), e).to_responder()
             })
     }
 }

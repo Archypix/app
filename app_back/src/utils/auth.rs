@@ -18,7 +18,6 @@ impl<'r> FromRequest<'r> for User {
     type Error = ErrorResponder;
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        // get user_id and auth_token from request headers
         let user_id = request.headers().get_one("X-User-Id").map(|s| s.parse::<u32>().ok()).flatten();
         let auth_token = request.headers().get_one("X-Auth-Token").map(|s| hex::decode(s).ok()).flatten();
         if user_id.is_none() || auth_token.is_none() {
@@ -28,13 +27,9 @@ impl<'r> FromRequest<'r> for User {
         let db: &DBPool = request.rocket().state::<DBPool>().unwrap();
         let conn = &mut db.get().unwrap();
 
-        let result = users::table.left_join(auth_tokens::table)
-            .filter(users::dsl::id.eq(user_id.unwrap()))
-            .filter(auth_tokens::dsl::token.eq(auth_token.unwrap()))
-            .select((User::as_select(), Option::<AuthToken>::as_select()))
-            .first::<(User, Option<AuthToken>)>(conn);
+        let result = User::find_logged_in_opt(conn, user_id.unwrap(), auth_token.unwrap());
 
-        if let Some((user, Some(auth))) = result.ok() {
+        if let Some((user, auth)) = result.ok().flatten() {
             if user.status == UserStatus::Unconfirmed {
                 return Outcome::Error((Status::Unauthorized, ErrorType::UserUnconfirmed.to_responder()));
             }
@@ -49,6 +44,23 @@ impl<'r> FromRequest<'r> for User {
             return Outcome::Success(user);
         }
         Outcome::Error((Status::Unauthorized, ErrorType::UserNotFound.to_responder()))
+    }
+}
+
+pub struct UserAuthInfo {
+    pub user_id: Option<u32>,
+    pub auth_token: Option<Vec<u8>>,
+}
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for UserAuthInfo {
+    type Error = ErrorResponder;
+    async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        let user_id = User::get_id_from_headers(request);
+        let auth_token = AuthToken::get_auth_token_from_headers(request);
+        Outcome::Success(UserAuthInfo {
+            user_id,
+            auth_token,
+        })
     }
 }
 

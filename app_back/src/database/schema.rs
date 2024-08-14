@@ -1,7 +1,7 @@
 use diesel::sql_types::{Binary, Nullable, SqlType, VarChar};
 use diesel::{allow_tables_to_appear_in_same_query, joinable, table};
 use diesel_derives::define_sql_function;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 define_sql_function! { fn last_insert_id() -> Unsigned<Bigint> }
 define_sql_function! { fn inet6_ntoa(ip: Nullable<Binary>) -> Nullable<VarChar> }
@@ -44,7 +44,7 @@ table! {
 joinable!(auth_tokens -> users (user_id));
 allow_tables_to_appear_in_same_query!(auth_tokens, users);
 
-#[derive(Debug, PartialEq, diesel_derive_enum::DbEnum)]
+#[derive(Debug, PartialEq, diesel_derive_enum::DbEnum, Deserialize, Serialize)]
 pub enum ConfirmationAction {
     Signup,
     Signin,
@@ -56,9 +56,11 @@ table! {
     confirmations (user_id, action, token) {
         user_id -> Unsigned<Integer>,
         // 16 byte
-        token -> Binary,
         action -> ConfirmationActionMapping,
+        used -> Bool,
         date -> Datetime,
+        token -> Binary,
+        code_token -> Binary,
         code -> Unsigned<Smallint>,
         code_trials -> Unsigned<Tinyint>,
         device_string -> Nullable<Varchar>,
