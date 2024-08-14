@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS __diesel_schema_migrations;
 DROP TABLE IF EXISTS auth_tokens;
 DROP TABLE IF EXISTS confirmations;
 DROP TABLE IF EXISTS totp_secrets;

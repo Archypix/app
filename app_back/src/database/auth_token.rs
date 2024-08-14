@@ -24,8 +24,9 @@ pub struct AuthToken {
 }
 
 impl AuthToken {
-    pub(crate) fn insert_token_for_user(conn: &mut DBConn, user_id: &u32, device_info: &DeviceInfo) -> Result<Vec<u8>, ErrorResponder> {
+    pub(crate) fn insert_token_for_user(conn: &mut DBConn, user_id: &u32, device_info: &DeviceInfo, try_count: u8) -> Result<Vec<u8>, ErrorResponder> {
         let auth_token = random_token(32);
+
         insert_into(auth_tokens::table)
             .values((
                 auth_tokens::dsl::user_id.eq(user_id),
@@ -36,9 +37,9 @@ impl AuthToken {
             .execute(conn)
             .map(|_| auth_token)
             .or_else(|e| {
-                if is_error_duplicate_key(&e, "auth_tokens.token") {
+                if is_error_duplicate_key(&e, "auth_tokens.PRIMARY") && try_count < 4 {
                     println!("Auth token already exists, trying again.");
-                    return AuthToken::insert_token_for_user(conn, user_id, device_info);
+                    return AuthToken::insert_token_for_user(conn, user_id, device_info, try_count + 1);
                 }
                 Err(ErrorType::DatabaseError("Failed to insert auth token".to_string(), e).to_responder())
             })
@@ -84,7 +85,7 @@ pub struct Confirmation {
 }
 
 impl Confirmation {
-    pub(crate) fn insert_confirmation(conn: &mut DBConn, user_id: u32, action: ConfirmationAction, device_info: &DeviceInfo) -> Result<(Vec<u8>, Vec<u8>, u16), ErrorResponder> {
+    pub(crate) fn insert_confirmation(conn: &mut DBConn, user_id: u32, action: ConfirmationAction, device_info: &DeviceInfo, try_count: u8) -> Result<(Vec<u8>, Vec<u8>, u16), ErrorResponder> {
         let token = random_token(16);
         let code_token = random_token(16);
         let code = random_code(4) as u16;
@@ -102,9 +103,9 @@ impl Confirmation {
             .execute(conn)
             .map(|_| (token, code_token, code))
             .or_else(|e| {
-                if is_error_duplicate_key(&e, "confirmations.token") {
+                if is_error_duplicate_key(&e, "confirmations.PRIMARY") || is_error_duplicate_key(&e, "confirmations.UQ_confirmations") && try_count < 3 {
                     println!("Confirmation token already exists, trying again.");
-                    return Confirmation::insert_confirmation(conn, user_id, action, device_info);
+                    return Confirmation::insert_confirmation(conn, user_id, action, device_info, try_count + 1);
                 }
                 Err(ErrorType::DatabaseError("Failed to insert confirmation".to_string(), e).to_responder())
             })

@@ -43,7 +43,7 @@ pub fn auth_signin(data: Json<SigninData>, db: &rocket::State<DBPool>, device_in
                     ErrorType::UserUnconfirmed.to_err()
                 }
                 _ => {
-                    let auth_token = AuthToken::insert_token_for_user(conn, &user.id, &device_info)?;
+                    let auth_token = AuthToken::insert_token_for_user(conn, &user.id, &device_info, 0)?;
 
                     Ok(Json(SigninResponse {
                         user_id: user.id,

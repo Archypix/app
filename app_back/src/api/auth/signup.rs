@@ -38,7 +38,7 @@ pub fn auth_signup(data: Json<SignupData>, db: &rocket::State<DBPool>, device_in
     let uid = User::create_user(conn, &data.name, &data.email, &data.password)?;
 
     // Inserting confirmation
-    let (confirm_token, confirm_code_token, confirm_code) = Confirmation::insert_confirmation(conn, uid, ConfirmationAction::Signup, &device_info)?;
+    let (confirm_token, confirm_code_token, confirm_code) = Confirmation::insert_confirmation(conn, uid, ConfirmationAction::Signup, &device_info, 0)?;
     let confirm_code_str = left_pad(&confirm_code.to_string(), '0', 4);
 
     // Sending email

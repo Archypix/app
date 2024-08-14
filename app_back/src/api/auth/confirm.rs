@@ -47,7 +47,7 @@ pub fn auth_confirm_code(data: Json<ConfirmCodeData>, db: &rocket::State<DBPool>
             user.switch_status(conn, &UserStatus::Normal)?;
 
             // Create auth token and return it
-            let auth_token = AuthToken::insert_token_for_user(conn, &user.id, &device_info)?;
+            let auth_token = AuthToken::insert_token_for_user(conn, &user.id, &device_info, 0)?;
             Ok(Json(ConfirmResponse {
                 auth_token: Some(hex::encode(auth_token)),
             }))
