@@ -26,6 +26,7 @@ table! {
         password_hash -> Char,
         creation_date -> Datetime,
         status -> UserStatusMapping,
+        tfa_login -> Bool,
         storage_count_ko -> Unsigned<BigInt>,
         storage_limit_mo -> Unsigned<Integer>,
     }

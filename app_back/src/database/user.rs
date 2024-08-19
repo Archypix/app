@@ -19,6 +19,7 @@ pub struct User {
     pub password_hash: String,
     pub creation_date: NaiveDateTime,
     pub status: UserStatus,
+    pub tfa_login: bool,
     pub storage_count_ko: u64,
     pub storage_limit_mo: u32,
 }

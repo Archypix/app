@@ -16,6 +16,9 @@ export enum ErrorType {
     UserUnconfirmed = 'UserUnconfirmed',
     // Sign in types
     InvalidEmailOrPassword = "InvalidEmailOrPassword",
+    TFARequiredOverEmail = "TFARequiredOverEmail",
+    TFARequired = "TFARequired",
+    InvalidTOTPCode = "InvalidTOTPCode",
     // Sign up types
     EmailAlreadyExists = "EmailAlreadyExists",
     // Confirm
@@ -25,6 +28,8 @@ export enum ErrorType {
     UserNotAdmin = 'UserNotAdmin',
     // Database error
     DatabaseError = 'DatabaseError',
+    // Other
+    UnwrapError = 'UnwrapError',
     // Front end
     NoConfirmCodeToken = 'NoConfirmCodeToken',
 

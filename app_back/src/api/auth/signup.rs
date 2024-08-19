@@ -53,6 +53,8 @@ pub fn auth_signup(data: Json<SignupData>, db: &rocket::State<DBPool>, device_in
         context.insert("name", &data.name);
         context.insert("url", &signup_url);
         context.insert("code", &confirm_code_str);
+        context.insert("ip", &device_info.ip_address.unwrap_or("Unknown".to_string()));
+        context.insert("agent", &device_info.device_string);
         send_rendered_email((data.name.clone(), data.email.clone()), subject, "confirm_signup".to_string(), context);
 
         Ok(Json(SignupResponse {

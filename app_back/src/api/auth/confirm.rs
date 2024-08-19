@@ -40,11 +40,12 @@ pub fn auth_confirm_code(data: Json<ConfirmCodeData>, db: &rocket::State<DBPool>
 
     let code_token = hex::decode(&data.code_token).map_err(|_| ErrorType::UnprocessableEntity.to_responder())?;
 
-    match data.action {
-        ConfirmationAction::Signup => {
-            conn.transaction::<_, ErrorResponder, _>(|conn| {
+    conn.transaction::<_, ErrorResponder, _>(|conn| {
+        Confirmation::check_code_and_mark_as_used(conn, &user_id, &data.action, &code_token, &data.code, 15)?;
+
+        match data.action {
+            ConfirmationAction::Signup => {
                 // It is useless to check if user status is Unconfirmed. Only one signup confirm can exist at a time.
-                Confirmation::check_code_and_mark_as_used(conn, &user_id, &data.action, &code_token, &data.code, 15)?;
                 user.switch_status(conn, &UserStatus::Normal)?;
 
                 let auth_token = AuthToken::insert_token_for_user(conn, &user.id, &device_info, 0)?;
@@ -52,10 +53,17 @@ pub fn auth_confirm_code(data: Json<ConfirmCodeData>, db: &rocket::State<DBPool>
                 Ok(Json(ConfirmResponse {
                     auth_token: Some(hex::encode(auth_token)),
                 }))
-            })
+            }
+            ConfirmationAction::Signin => {
+                let auth_token = AuthToken::insert_token_for_user(conn, &user.id, &device_info, 0)?;
+
+                Ok(Json(ConfirmResponse {
+                    auth_token: Some(hex::encode(auth_token)),
+                }))
+            }
+            _ => {
+                ErrorType::BadRequest.to_err()
+            }
         }
-        _ => {
-            ErrorType::BadRequest.to_err()
-        }
-    }
+    })
 }

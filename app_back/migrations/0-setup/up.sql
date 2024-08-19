@@ -7,6 +7,7 @@ CREATE TABLE users
     password_hash    CHAR(60)                                          NOT NULL,
     creation_date    DATETIME                                          NOT NULL DEFAULT (UTC_TIMESTAMP()),
     status           ENUM ('unconfirmed', 'normal', 'banned', 'admin') NOT NULL DEFAULT 'unconfirmed',
+    tfa_login BOOLEAN NOT NULL DEFAULT FALSE,
     storage_count_ko BIGINT UNSIGNED                                   NOT NULL DEFAULT 0,
     storage_limit_mo INT UNSIGNED                                      NOT NULL DEFAULT 0
 );

@@ -40,6 +40,9 @@ pub enum ErrorType {
     UserUnconfirmed,
     // Sign in types
     InvalidEmailOrPassword,
+    TFARequiredOverEmail, // Only email confirm available
+    TFARequired, // TOTP or email confirm available
+    InvalidTOTPCode,
     // Sign up types
     EmailAlreadyExists,
     // Confirm
@@ -49,6 +52,8 @@ pub enum ErrorType {
     UserNotAdmin,
     // Database error
     DatabaseError(String, Error),
+    // Other
+    UnwrapError(String),
 }
 
 impl ErrorType {
@@ -72,6 +77,9 @@ impl ErrorType {
             ErrorType::UserUnconfirmed => ErrorResponder::Unauthorized(Self::res("User is not confirmed".to_string(), kind)),
             // Sign in types
             ErrorType::InvalidEmailOrPassword => ErrorResponder::Unauthorized(Self::res("Invalid email or password".to_string(), kind)),
+            ErrorType::TFARequiredOverEmail => ErrorResponder::Unauthorized(Self::res("2FA required over email".to_string(), kind)),
+            ErrorType::TFARequired => ErrorResponder::Unauthorized(Self::res("2FA required".to_string(), kind)),
+            ErrorType::InvalidTOTPCode => ErrorResponder::Unauthorized(Self::res("Invalid TOTP code".to_string(), kind)),
             // Sign up types
             ErrorType::EmailAlreadyExists => ErrorResponder::Unauthorized(Self::res("Email already exists".to_string(), kind)),
             // Confirm
@@ -81,6 +89,8 @@ impl ErrorType {
             ErrorType::UserNotAdmin => ErrorResponder::Unauthorized(Self::res("User is not an admin".to_string(), kind)),
             // Database error
             ErrorType::DatabaseError(msg, err) => ErrorResponder::InternalError(Self::res(format!("Database error: {} - {}", msg, err), kind)),
+            // Other
+            ErrorType::UnwrapError(msg) => ErrorResponder::InternalError(Self::res(format!("Unwrap error: {}", msg), kind)),
         }
     }
     fn res(msg: String, kind: ErrorTypeKind) -> Json<ErrorResponse> {
