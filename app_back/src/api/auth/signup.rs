@@ -13,14 +13,16 @@ use crate::utils::auth::DeviceInfo;
 use crate::utils::errors_catcher::ErrorResponder;
 use crate::utils::utils::left_pad;
 use crate::utils::validation::validate_input;
+use crate::utils::validation::validate_password;
+use crate::utils::validation::validate_user_name;
 
 #[derive(Deserialize, Debug, Validate)]
 pub struct SignupData {
-    #[validate(length(min = 3, max = 100, message = "Length must be between 3 and 100 characters"))]
+    #[validate(custom(function = validate_user_name))]
     name: String,
-    #[validate(email)]
+    #[validate(email(code = "email_invalid", message = "Invalid email"))]
     email: String,
-    #[validate(length(min = 8, max = 100, message = "Length must be between 8 and 100 characters"))]
+    #[validate(custom(function = validate_password))]
     password: String,
 }
 

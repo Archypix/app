@@ -118,7 +118,7 @@ export const useUserStore = defineStore('user', () => {
 
     return {
         status, name, email, id, auth_token, code_token,
-        isLoggedIn, isUnconfirmed, isAdmin, signIn,
+        isLoggedIn, isUnconfirmed, isAdmin, signIn, signUp,
         updateStatus
     }
 })

@@ -64,7 +64,8 @@
       small
         margin-top: 2px
 
-    button
+
+    > button
       width 100%
       max-width 150px
       margin 1em 0
