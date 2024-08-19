@@ -8,15 +8,23 @@ const props = defineProps({
   icon: String,
   small: String,
   small_error: Boolean,
-  reset_password: Boolean
+  link_url: String,
+  link_name: String
 })
 
 const target = ref()
-const emit = defineEmits(['update:value'])
+const emit = defineEmits(['update:value', 'update:small'])
 
 let id: string = '';
 if(props.name){
   id = props.name.toLowerCase() + '-input';
+}
+
+function onInput(e: Event) {
+  emit('update:value', (e.target as HTMLInputElement).value)
+  if (props.small_error) {
+    emit('update:small', '') // Clear small error when input is changed
+  }
 }
 
 </script>
@@ -25,7 +33,9 @@ if(props.name){
   <div class="input-in-form">
     <div class="header" v-if="name">
       <label :for="id">{{ name }}</label>
-      <label v-if="reset_password" :for="id"><nuxt-link href="/resetpassword">Forgot password?</nuxt-link></label>
+      <label v-if="link_url && link_name" :for="id">
+        <nuxt-link :href="link_url">{{ link_name }}</nuxt-link>
+      </label>
     </div>
 
     <InputText
@@ -33,7 +43,7 @@ if(props.name){
         :ref="target"
         :type="type"
         :value="props.value"
-        @input="emit('update:value', ($event.target as HTMLInputElement).value)"
+        @input="onInput($event)"
         :aria-describedby="props.aria"
         :invalid="small_error && small?.length != 0"
         autocomplete="on"/>

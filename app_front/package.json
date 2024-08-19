@@ -1,5 +1,5 @@
 {
-  "name": "nuxt-app",
+  "name": "archypix_app_front",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,14 +10,14 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "@pinia/nuxt": "^0.5.1",
-    "@vueuse/nuxt": "^10.9.0",
-    "nuxt": "^3.10.3",
-    "pinia": "^2.1.7",
+    "@pinia/nuxt": "^0.5.3",
+    "@vueuse/nuxt": "^11.0.0",
+    "nuxt": "^3.12.4",
+    "pinia": "^2.2.2",
     "primeicons": "^7.0.0",
     "stylus": "^0.63.0",
-    "vue": "^3.4.19",
-    "vue-router": "^4.3.0"
+    "vue": "^3.4.38",
+    "vue-router": "^4.4.3"
   },
   "devDependencies": {
     "nuxt-primevue": "^3.0.0"

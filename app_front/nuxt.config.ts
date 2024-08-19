@@ -1,76 +1,82 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  runtimeConfig: {
-      public: {
-          backendHost: 'http://127.0.0.1:8000', // Overrideable by env NUXT_PUBLIC_BACKEND_HOST
-          backendHostSSR: 'http://127.0.0.1:8000', // Overrideable by env NUXT_PUBLIC_BACKEND_HOST_SSR
-      }
-  },
+    runtimeConfig: {
+        public: { // Overrideable by NUXT_PUBLIC_*
+            backendHost: 'http://127.0.0.1:8000',
+            backendHostSSR: 'http://127.0.0.1:8000',
+            isStandalone: true,
+        }
+    },
 
-  app: {
-      head: {
-          charset: 'utf-8',
-          viewport: 'width=device-width, initial-scale=1',
-      },
-      pageTransition: {name: 'page', mode: 'out-in'},
-      layoutTransition: {name: 'layout', mode: 'out-in'}
-  },
+    app: {
+        head: {
+            charset: 'utf-8',
+            viewport: 'width=device-width, initial-scale=1',
+        },
+        pageTransition: {name: 'page', mode: 'out-in'},
+        layoutTransition: {name: 'layout', mode: 'out-in'}
+    },
 
-  components: [
-      {
-          path: '~/components',
-          pathPrefix: false,
-      },
-  ],
+    components: [
+        {
+            path: '~/components',
+            pathPrefix: false,
+        },
+    ],
 
-  modules: [
-      'nuxt-primevue',
-      '@pinia/nuxt',
-      '@vueuse/nuxt',
-  ],
+    modules: [
+        'nuxt-primevue',
+        '@pinia/nuxt',
+        '@vueuse/nuxt',
+    ],
 
-  primevue: {
-      options: {
-          ripple: true,
-      }
-  },
+    primevue: {
+        options: {
+            ripple: true,
+        }
+    },
 
-  pinia: {
-      storesDirs: ['./stores/**'],
-  },
+    pinia: {
+        storesDirs: ['./stores/**'],
+    },
 
-  css: [
-      'assets/css/common.styl',
-      'primevue/resources/themes/aura-light-green/theme.css',
-      'primeicons/primeicons.css'
-  ],
+    css: [
+        'assets/css/common.styl',
+        'primevue/resources/themes/aura-light-green/theme.css',
+        'primeicons/primeicons.css'
+    ],
 
-  vite: {
-      css: {
-          preprocessorOptions: {}
-      }
-  },
+    vite: {
+        css: {
+            preprocessorOptions: {}
+        }
+    },
 
-  routeRules: {
-      // Client-side only
-      '/': {ssr: false},
-      '/admin/**': {ssr: false},
-      // Other pages default to CDN cache.
-      '/**': {isr: false, swr: false, ssr: true, prerender: false},
-  },
+    routeRules: {
+        // Client-side only
+        '/': {ssr: false},
+        '/admin/**': {ssr: false},
+        // Other pages default to CDN cache.
+        '/**': {isr: false, swr: false, ssr: true, prerender: false},
+    },
 
-  $production: {
+    $production: {},
 
-  },
+    $development: {
+        devtools: {
+            enabled: true,
+            timeline: {
+                enabled: true
+            }
+        }
+    },
 
-  $development: {
-      devtools: {
-          enabled: true,
-          timeline: {
-              enabled: true
-          }
-      }
-  },
+    compatibilityDate: '2024-07-28',
 
-  compatibilityDate: '2024-07-28'
+    vue: {
+        compilerOptions: {
+            whitespace: 'condense',
+            comments: false,
+        },
+    },
 })

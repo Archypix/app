@@ -28,6 +28,13 @@
   @media screen and (min-width: 400px)
     align-items center
 
+:deep(p), :deep(h1), :deep(h2), :deep(h3), :deep(h4), :deep(h5), :deep(h6)
+  text-align center
+
+:deep(h1)
+  font-size 1.5em
+  margin-bottom 1em
+
 :deep(main)
   background-color white;
   padding 10px
@@ -43,11 +50,23 @@
     border: 1px solid var(--primary-100)
     filter: drop-shadow(0 0 10px var(--primary-100))
 
-:deep(p), :deep(h1), :deep(h2), :deep(h3), :deep(h4), :deep(h5), :deep(h6)
-  text-align center
 
-:deep(h1)
-  font-size 1.5em
-  margin-bottom 1em
+  form
+    display flex
+    flex-direction column
+    align-items center
+    gap 10px
+
+    .input-in-form
+      width 100%
+      max-width 250px
+
+      small
+        margin-top: 2px
+
+    button
+      width 100%
+      max-width 150px
+      margin 1em 0
 
 </style>

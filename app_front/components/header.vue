@@ -1,8 +1,8 @@
 <script setup lang="ts">
-const rootServer = useRuntimeConfig()?.public?.rootServer
+const isStandalone = useRuntimeConfig()?.public?.isStandalone
 
 let user = useUserStore()
-let isConnected = user.isConnected(false, true);
+let isLoggedIn = user.isLoggedIn(false, true);
 
 </script>
 
@@ -14,37 +14,26 @@ let isConnected = user.isConnected(false, true);
       </div>
       <h2>
         Archypix
-        <span v-if="!rootServer || true">Standalone</span>
+        <span v-if="isStandalone">Standalone</span>
       </h2>
     </div>
     <div class="right">
       <nav>
         <ul>
-          <li class="current" v-if="rootServer">
-            <nuxt-link to="/overview"><span class="pi pi-home"/>Home</nuxt-link>
-          </li>
-          <li v-if="rootServer">
-            <nuxt-link to="/about"><span class="pi pi-info-circle"/>About</nuxt-link>
-          </li>
-          <li v-if="rootServer">
-            <nuxt-link to="/pricing"><span class="pi pi-dollar"/>Pricing</nuxt-link>
-          </li>
-          <template v-if="!isConnected">
+          <template v-if="!isLoggedIn">
             <li v-if="user.isUnconfirmed()">
               <nuxt-link to="/signup/confirm"><span class="pi pi-envelope"/>Confirm account</nuxt-link>
             </li>
-           <template v-else>
-             <li>
-               <nuxt-link to="/signin"><span class="pi pi-sign-in"/>Sign in</nuxt-link>
-             </li>
-             <li>
-               <nuxt-link to="/signup"><span class="pi pi-user-plus"/>Sign up</nuxt-link>
-             </li>
-           </template>
+            <li>
+              <nuxt-link to="/signin"><span class="pi pi-sign-in"/>Sign in</nuxt-link>
+            </li>
+            <li>
+              <nuxt-link to="/signup"><span class="pi pi-user-plus"/>Sign up</nuxt-link>
+            </li>
           </template>
           <template v-else>
             <li>
-              <nuxt-link to="/"><span class="pi pi-user"/>{{user.name}}</nuxt-link>
+              <nuxt-link to="/"><span class="pi pi-images"/>Archypix webapp</nuxt-link>
             </li>
           </template>
           <template v-if="user.isAdmin()">
@@ -109,8 +98,10 @@ nav
       height 100%
       display block
       position relative
+
       &.current a
         border-color hsl(174, 90%, 40%)
+
       a
         position relative
         top 50%

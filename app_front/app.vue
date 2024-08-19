@@ -1,5 +1,15 @@
 <script setup lang="ts">
-await useUserStore().fetchStatus()
+await useUserStore().updateStatus()
+
+useHead({
+  titleTemplate: '%s | Archypix',
+  meta: [
+    {
+      name: 'description',
+      content: 'Archypix is an efficient cloud based picture manager that supports automatic grouping of pictures into custom arrangements, while allowing users to share groups together.'
+    }
+  ]
+})
 
 </script>
 
