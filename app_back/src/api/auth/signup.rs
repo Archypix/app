@@ -26,7 +26,7 @@ pub struct SignupData {
 
 #[derive(Serialize, Debug)]
 pub struct SignupResponse {
-    pub(crate) user_id: u32,
+    pub(crate) id: u32,
     pub(crate) code_token: String,
 }
 
@@ -54,7 +54,7 @@ pub fn auth_signup(data: Json<SignupData>, db: &rocket::State<DBPool>, device_in
         send_rendered_email((data.name.clone(), data.email.clone()), subject, "confirm_signup".to_string(), context);
 
         Ok(Json(SignupResponse {
-            user_id: uid,
+            id: uid,
             code_token: hex::encode(confirm_code_token),
         }))
     })

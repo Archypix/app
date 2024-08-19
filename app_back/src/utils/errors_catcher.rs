@@ -38,6 +38,8 @@ pub enum ErrorType {
     UserNotFound,
     UserBanned,
     UserUnconfirmed,
+    // Sign in types
+    InvalidEmailOrPassword,
     // Sign up types
     EmailAlreadyExists,
     // Confirm
@@ -68,6 +70,8 @@ impl ErrorType {
             ErrorType::UserNotFound => ErrorResponder::Unauthorized(Self::res("User not found".to_string(), kind)),
             ErrorType::UserBanned => ErrorResponder::Unauthorized(Self::res("User is banned".to_string(), kind)),
             ErrorType::UserUnconfirmed => ErrorResponder::Unauthorized(Self::res("User is not confirmed".to_string(), kind)),
+            // Sign in types
+            ErrorType::InvalidEmailOrPassword => ErrorResponder::Unauthorized(Self::res("Invalid email or password".to_string(), kind)),
             // Sign up types
             ErrorType::EmailAlreadyExists => ErrorResponder::Unauthorized(Self::res("Email already exists".to_string(), kind)),
             // Confirm

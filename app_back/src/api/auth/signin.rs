@@ -32,7 +32,7 @@ pub fn auth_signin(data: Json<SigninData>, db: &rocket::State<DBPool>, device_in
                     return Ok(user);
                 }
             }
-            ErrorType::UserNotFound.to_err()
+            ErrorType::InvalidEmailOrPassword.to_err()
         })?;
 
     return match user.status {
