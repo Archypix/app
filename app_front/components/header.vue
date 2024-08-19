@@ -21,9 +21,6 @@ let isLoggedIn = user.isLoggedIn(false, true);
       <nav>
         <ul>
           <template v-if="!isLoggedIn">
-            <li v-if="user.isUnconfirmed()">
-              <nuxt-link to="/signup/confirm"><span class="pi pi-envelope"/>Confirm account</nuxt-link>
-            </li>
             <li>
               <nuxt-link to="/signin"><span class="pi pi-sign-in"/>Sign in</nuxt-link>
             </li>

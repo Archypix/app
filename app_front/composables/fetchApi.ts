@@ -14,12 +14,20 @@ export enum ErrorType {
     UserNotFound = 'UserNotFound',
     UserBanned = 'UserBanned',
     UserUnconfirmed = 'UserUnconfirmed',
+    // Sign in types
+    InvalidEmailOrPassword = "InvalidEmailOrPassword",
     // Sign up types
-    EmailAlreadyExists = 'EmailAlreadyExists',
+    EmailAlreadyExists = "EmailAlreadyExists",
+    // Confirm
+    ConfirmationAlreadyUsed = "ConfirmationAlreadyUsed",
+    ConfirmationNotFound = "ConfirmationNotFound",
     // Admin
     UserNotAdmin = 'UserNotAdmin',
     // Database error
     DatabaseError = 'DatabaseError',
+    // Front end
+    NoConfirmCodeToken = 'NoConfirmCodeToken',
+
 }
 
 export type ApiError = {
@@ -63,13 +71,6 @@ export const useFetchApi = async function <B, R>(ssr: boolean = false, method: s
             },
             server: ssr,
             body: body,
-            onRequest: (config) => {
-                if (import.meta.server) {
-                    console.info('useFetchApi on SERVER');
-                } else {
-                    console.info('useFetchApi on CLIENT');
-                }
-            }
         })
         if (data.value) {
             console.log('useFetchApi', 'Success:', data.value)

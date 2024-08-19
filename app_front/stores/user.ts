@@ -1,5 +1,6 @@
 import type {Ref} from "vue";
 import type {ApiError} from "~/composables/fetchApi";
+import {super} from "@babel/types";
 
 export enum UserStatus {
     Unconfirmed = 'Unconfirmed',
@@ -17,10 +18,10 @@ export type AuthStatus = {
 }
 
 export type SignInResponse = {
-    status: UserStatus
-    name: string
-    id: string
+    user_id: string
     auth_token: string
+    name: string
+    status: UserStatus
 }
 
 export type SignUpResponse = {
@@ -28,6 +29,16 @@ export type SignUpResponse = {
     code_token: string
 }
 
+export type ConfirmResponse = {
+    auth_token: string | null
+}
+
+export enum ConfirmAction {
+    Signup = "Signup",
+    Signin = "Signin",
+    ResetPassword = "ResetPassword",
+    DeleteAccount = "DeleteAccount"
+}
 
 export const useUserStore = defineStore('user', () => {
 
@@ -37,7 +48,6 @@ export const useUserStore = defineStore('user', () => {
     const email: Ref<string | null> = ref(null)
     let id = useCookie('px_user_id', {watch: true})
     let auth_token = useCookie('px_auth_token', {watch: true})
-    const code_token = ref('')
 
     // Methods
     const isLoggedIn = (accept_unconfirmed: boolean = false, accept_banned: boolean = false) => {
@@ -45,15 +55,15 @@ export const useUserStore = defineStore('user', () => {
             || (accept_unconfirmed && status.value == UserStatus.Unconfirmed)
             || (accept_banned && status.value == UserStatus.Banned)
     }
-    const isUnconfirmed = () => {
+    const isUnconfirmed = computed(() => {
         return status.value == UserStatus.Unconfirmed
-    }
+    })
     const isAdmin = () => {
         return status.value == UserStatus.Admin
     }
-    const signIn = async (email: string, password: string) => {
+    const signIn = async (user_email: string, password: string) => {
 
-        return useFetchApi(false, 'POST', null, null, '/auth/signin', {email, password})
+        return useFetchApi(false, 'POST', null, null, '/auth/signin', {user_email, password})
             .catch((error: ApiError | null) => {
                 if (error?.error_type === ErrorType.Unauthorized) {
                     status.value = UserStatus.NotConnected
@@ -64,9 +74,10 @@ export const useUserStore = defineStore('user', () => {
             })
             // @ts-ignore cause ts wants type void | SignInResponse but it's SignInResponse
             .then((data: SignInResponse) => {
+                email.value = user_email
                 status.value = data.status
                 name.value = data.name
-                id.value = data.id
+                id.value = data.user_id
                 auth_token.value = data.auth_token
                 return data
             })
@@ -85,7 +96,7 @@ export const useUserStore = defineStore('user', () => {
             .then((data: SignUpResponse) => {
                 status.value = UserStatus.Unconfirmed
                 id.value = data.id
-                code_token.value = data.code_token
+                setConfirmCodeToken(ConfirmAction.Signup, data.code_token, 15)
                 return data
             })
     }
@@ -110,15 +121,38 @@ export const useUserStore = defineStore('user', () => {
                     name.value = data.name
                     email.value = data.email
                 })
+        } else if (id.value && getConfirmCodeToken(ConfirmAction.Signup)) {
+            status.value = UserStatus.Unconfirmed
         } else {
             status.value = UserStatus.NotConnected
         }
     }
 
+    // Confirm tokens
+    const getConfirmCodeToken = (action: ConfirmAction) => {
+        return useCookie('px_confirm_' + action.toLowerCase() + '_code_token').value
+    }
+    const setConfirmCodeToken = (action: ConfirmAction, token: string, expiry_min: number) => {
+        let options = {maxAge: expiry_min * 60}
+        useCookie('px_confirm_' + action.toLowerCase() + '_code_token', options).value = token
+    }
+    const removeConfirmToken = (action: ConfirmAction) => {
+        useCookie('px_confirm_' + action.toLowerCase() + '_code_token').value = null
+    }
+    const confirmWithCode = async (action: ConfirmAction, code: number) => {
+        const code_token = getConfirmCodeToken(action)
+        if (!code_token) return Promise.reject({
+            error_type: ErrorType.NoConfirmCodeToken,
+            message: 'No confirm code token'
+        } as ApiError)
+        return useFetchApi(false, 'POST', auth_token.value, id.value, '/auth/confirm/code', {action, code, code_token})
+    }
+
 
     return {
-        status, name, email, id, auth_token, code_token,
+        status, name, email, id, auth_token,
         isLoggedIn, isUnconfirmed, isAdmin, signIn, signUp,
-        updateStatus
+        updateStatus,
+        getConfirmCodeToken, setConfirmCodeToken, removeConfirmToken, confirmWithCode
     }
 })

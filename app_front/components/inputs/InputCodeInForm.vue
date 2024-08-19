@@ -3,21 +3,15 @@
 const props = defineProps({
   name: String,
   value: String,
-  type: String,
-  icon: String,
   small: String,
   small_error: Boolean,
-  link_url: String,
-  link_name: String,
-  password_visible: {
-    type: Boolean,
-    default: undefined
-  },
   disable_error_auto_remove: Boolean,
   default_focus: Boolean,
 })
 
 const emit = defineEmits(['update:value', 'update:small', 'update:password_visible'])
+const local_value = ref(props.value)
+watch(local_value, () => emit('update:value', local_value.value))
 
 let id = computed(() => props.name ? props.name.toLowerCase().replaceAll(' ', '-') + '-input' : '')
 
@@ -40,30 +34,17 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="input-in-form" ref="target">
+  <div class="inputcode-in-form" ref="target">
     <div class="header" v-if="name">
       <label :for="id">{{ name }}</label>
-      <label v-if="link_url && link_name" :for="id">
-        <nuxt-link :href="link_url">{{ link_name }}</nuxt-link>
-      </label>
     </div>
 
-    <InputGroup>
-      <InputGroupAddon v-if="icon">
-        <i class="{{icon}}"></i>
-      </InputGroupAddon>
-      <InputText
-          :id="id"
-          :type="password_visible ? 'text' : type"
-          :value="value"
-          @input="onInput($event)"
-          :aria-labelledby="name"
-          :invalid="small_error && small?.length != 0"
-          autocomplete="on"/>
-      <Button v-if="type == 'password' && password_visible !== undefined" tabindex="-1"
-              :icon="password_visible ? 'pi pi-eye-slash' : 'pi pi-eye'" severity="contrast"
-              @click="emit('update:password_visible', !password_visible)"/>
-    </InputGroup>
+    <InputOtp
+        :id="id"
+        v-model="local_value"
+        :aria-labelledby="name"
+        :invalid="small_error && small?.length != 0"
+        integerOnly/>
 
     <small v-if="props.small"
            :style="props.small_error ? 'color: var(--red-700);' : ''">
@@ -73,11 +54,11 @@ onMounted(() => {
 </template>
 
 <style scoped lang="stylus">
-.input-in-form
+.inputcode-in-form
 
   .header
     display flex
-    justify-content space-between
+    justify-content space-around
     margin-bottom 5px
 
   input

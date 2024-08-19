@@ -65,9 +65,22 @@
         margin-top: 2px
 
 
-    > button
+    button[type="submit"]
       width 100%
       max-width 150px
       margin 1em 0
+
+    button.p-button-link
+      padding 0
+
+  div.loading
+    display flex
+    flex-direction column
+    justify-content center
+    align-items center
+    gap 10px
+    margin 40px
+    font-size 1.2em
+
 
 </style>
