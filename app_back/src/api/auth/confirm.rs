@@ -32,7 +32,7 @@ pub struct ConfirmResponse {
 }
 
 #[post("/auth/confirm/code", data = "<data>")]
-pub fn auth_confirm_code(data: Json<ConfirmCodeData>, db: &rocket::State<DBPool>, user_auth_info: UserAuthInfo, device_info: DeviceInfo) -> Result<Json<ConfirmResponse>, ErrorResponder> {
+pub fn auth_confirm_code(data: Json<ConfirmCodeData>, db: &rocket::State<DBPool>, user: Option<User>, user_auth_info: UserAuthInfo, device_info: DeviceInfo) -> Result<Json<ConfirmResponse>, ErrorResponder> {
     validate_input(&data)?;
     let conn: &mut DBConn = &mut db.get().unwrap();
     let user_id = user_auth_info.user_id.ok_or(ErrorType::UserNotFound.to_responder())?;
@@ -44,7 +44,7 @@ pub fn auth_confirm_code(data: Json<ConfirmCodeData>, db: &rocket::State<DBPool>
         ConfirmationAction::Signup => {
             conn.transaction::<_, ErrorResponder, _>(|conn| {
                 // It is useless to check if user status is Unconfirmed. Only one signup confirm can exist at a time.
-                Confirmation::check_code_and_mark_as_used(conn, &user_id, &data.action, &code_token, &data.code)?;
+                Confirmation::check_code_and_mark_as_used(conn, &user_id, &data.action, &code_token, &data.code, 15)?;
                 user.switch_status(conn, &UserStatus::Normal)?;
 
                 let auth_token = AuthToken::insert_token_for_user(conn, &user.id, &device_info, 0)?;

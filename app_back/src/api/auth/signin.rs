@@ -19,6 +19,8 @@ pub struct SigninData {
 pub struct SigninResponse {
     pub(crate) user_id: u32,
     pub(crate) auth_token: String,
+    pub(crate) name: String,
+    pub(crate) status: UserStatus,
 }
 
 #[post("/auth/signin", data = "<data>")]
@@ -48,6 +50,8 @@ pub fn auth_signin(data: Json<SigninData>, db: &rocket::State<DBPool>, device_in
             Ok(Json(SigninResponse {
                 user_id: user.id,
                 auth_token: hex::encode(auth_token),
+                name: user.name,
+                status: user.status,
             }))
         }
     };

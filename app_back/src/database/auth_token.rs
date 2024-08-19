@@ -4,7 +4,7 @@ use crate::database::utils::is_error_duplicate_key;
 use crate::utils::auth::DeviceInfo;
 use crate::utils::errors_catcher::{ErrorResponder, ErrorType};
 use crate::utils::utils::{random_code, random_token};
-use chrono::{NaiveDateTime, TimeDelta, Utc};
+use chrono::{Duration, NaiveDateTime, TimeDelta, Utc};
 use diesel::{delete, QueryDsl};
 use diesel::{insert_into, update, Identifiable, Insertable, Queryable, RunQueryDsl, Selectable};
 use diesel::{ExpressionMethods, OptionalExtension};
@@ -119,12 +119,13 @@ impl Confirmation {
                 Err(ErrorType::DatabaseError("Failed to insert confirmation".to_string(), e).to_responder())
             })
     }
-    pub fn check_code_and_mark_as_used(conn: &mut DBConn, user_id: &u32, action: &ConfirmationAction, code_token: &Vec<u8>, code: &u16) -> Result<(), ErrorResponder> {
+    pub fn check_code_and_mark_as_used(conn: &mut DBConn, user_id: &u32, action: &ConfirmationAction, code_token: &Vec<u8>, code: &u16, max_minutes: i64) -> Result<(), ErrorResponder> {
         let confirmation = confirmations::table
             .filter(confirmations::dsl::user_id.eq(user_id))
             .filter(confirmations::dsl::action.eq(action))
             .filter(confirmations::dsl::code_token.eq(code_token))
             .filter(confirmations::dsl::code.eq(code))
+            .filter(confirmations::dsl::date.ge(Utc::now().naive_utc() - Duration::minutes(max_minutes)))
             .first::<Confirmation>(conn)
             .optional()
             .map_err(|e| {
