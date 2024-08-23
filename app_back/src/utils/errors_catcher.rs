@@ -1,4 +1,6 @@
+use crate::database::database::DBConn;
 use diesel::result::Error;
+use diesel::Connection;
 use enum_kinds::EnumKind;
 use rocket::serde::json::Json;
 use rocket::Request;
@@ -17,11 +19,29 @@ pub enum ErrorResponder {
     #[response(status = 500, content_type = "json")]
     InternalError(Json<ErrorResponse>),
 }
+impl From<Error> for ErrorResponder {
+    fn from(value: Error) -> Self {
+        // Rollback all uncaught errors
+        ErrorType::DatabaseError("Diesel error".to_string(), value).res_rollback()
+    }
+}
+impl ErrorResponder {
+    pub fn do_rollback(&self) -> bool {
+        match self {
+            ErrorResponder::BadRequest(json) => json,
+            ErrorResponder::Unauthorized(json) => json,
+            ErrorResponder::NotFound(json) => json,
+            ErrorResponder::UnprocessableEntity(json) => json,
+            ErrorResponder::InternalError(json) => json,
+        }.rollback
+    }
+}
 
 #[derive(Serialize, Debug)]
 pub struct ErrorResponse {
     pub error_type: ErrorTypeKind,
     pub message: String,
+    pub rollback: bool,
 }
 
 #[derive(EnumKind, Debug)]
@@ -31,7 +51,7 @@ pub enum ErrorType {
     Unauthorized,
     NotFound(String),
     UnprocessableEntity,
-    InternalError,
+    InternalError(String),
     // Form validation (see UnprocessableEntity for type check related errors)
     InvalidInput(String),
     // User request guard
@@ -47,85 +67,111 @@ pub enum ErrorType {
     EmailAlreadyExists,
     // Confirm
     ConfirmationAlreadyUsed,
+    ConfirmationExpired,
+    ConfirmationTooManyAttempts,
     ConfirmationNotFound,
     // Admin
     UserNotAdmin,
     // Database error
     DatabaseError(String, Error),
-    // Other
-    UnwrapError(String),
 }
 
 impl ErrorType {
-    pub fn to_err<T>(self) -> Result<T, ErrorResponder> {
-        Err(self.to_responder())
+    pub fn res_err<T>(self) -> Result<T, ErrorResponder> {
+        Err(self.to_responder(false))
     }
-    pub fn to_responder(self) -> ErrorResponder {
+    pub fn res_err_rollback<T>(self) -> Result<T, ErrorResponder> {
+        Err(self.to_responder(true))
+    }
+    pub fn res(self) -> ErrorResponder {
+        self.to_responder(false)
+    }
+    pub fn res_rollback(self) -> ErrorResponder {
+        self.to_responder(true)
+    }
+    fn to_responder(self, rollback: bool) -> ErrorResponder {
         let kind = ErrorTypeKind::from(&self);
         match self {
             // Default HTTP types
-            ErrorType::BadRequest => ErrorResponder::BadRequest(Self::res("Bad request".to_string(), kind)),
-            ErrorType::Unauthorized => ErrorResponder::Unauthorized(Self::res("Unauthorized".to_string(), kind)),
-            ErrorType::NotFound(path) => ErrorResponder::NotFound(Self::res(format!("Not found: {}", path), kind)),
-            ErrorType::UnprocessableEntity => ErrorResponder::UnprocessableEntity(Self::res("Unprocessable entity".to_string(), kind)),
-            ErrorType::InternalError => ErrorResponder::InternalError(Self::res("Internal error".to_string(), kind)),
+            ErrorType::BadRequest => ErrorResponder::BadRequest(Self::create_response("Bad request".to_string(), kind, rollback)),
+            ErrorType::Unauthorized => ErrorResponder::Unauthorized(Self::create_response("Unauthorized".to_string(), kind, rollback)),
+            ErrorType::NotFound(path) => ErrorResponder::NotFound(Self::create_response(format!("Not found: {}", path), kind, rollback)),
+            ErrorType::UnprocessableEntity => ErrorResponder::UnprocessableEntity(Self::create_response("Unprocessable entity".to_string(), kind, rollback)),
+            ErrorType::InternalError(msg) => ErrorResponder::InternalError(Self::create_response(format!("Internal error: {}", msg).to_string(), kind, rollback)),
             // Form validation (see UnprocessableEntity for type check related errors)
-            ErrorType::InvalidInput(msg) => ErrorResponder::UnprocessableEntity(Self::res(msg, kind)),
+            ErrorType::InvalidInput(msg) => ErrorResponder::UnprocessableEntity(Self::create_response(msg, kind, rollback)),
             // Sign in / status types
-            ErrorType::UserNotFound => ErrorResponder::Unauthorized(Self::res("User not found".to_string(), kind)),
-            ErrorType::UserBanned => ErrorResponder::Unauthorized(Self::res("User is banned".to_string(), kind)),
-            ErrorType::UserUnconfirmed => ErrorResponder::Unauthorized(Self::res("User is not confirmed".to_string(), kind)),
+            ErrorType::UserNotFound => ErrorResponder::Unauthorized(Self::create_response("User not found".to_string(), kind, rollback)),
+            ErrorType::UserBanned => ErrorResponder::Unauthorized(Self::create_response("User is banned".to_string(), kind, rollback)),
+            ErrorType::UserUnconfirmed => ErrorResponder::Unauthorized(Self::create_response("User is not confirmed".to_string(), kind, rollback)),
             // Sign in types
-            ErrorType::InvalidEmailOrPassword => ErrorResponder::Unauthorized(Self::res("Invalid email or password".to_string(), kind)),
-            ErrorType::TFARequiredOverEmail => ErrorResponder::Unauthorized(Self::res("2FA required over email".to_string(), kind)),
-            ErrorType::TFARequired => ErrorResponder::Unauthorized(Self::res("2FA required".to_string(), kind)),
-            ErrorType::InvalidTOTPCode => ErrorResponder::Unauthorized(Self::res("Invalid TOTP code".to_string(), kind)),
+            ErrorType::InvalidEmailOrPassword => ErrorResponder::Unauthorized(Self::create_response("Invalid email or password".to_string(), kind, rollback)),
+            ErrorType::TFARequiredOverEmail => ErrorResponder::Unauthorized(Self::create_response("2FA required over email".to_string(), kind, rollback)),
+            ErrorType::TFARequired => ErrorResponder::Unauthorized(Self::create_response("2FA required".to_string(), kind, rollback)),
+            ErrorType::InvalidTOTPCode => ErrorResponder::Unauthorized(Self::create_response("Invalid TOTP code".to_string(), kind, rollback)),
             // Sign up types
-            ErrorType::EmailAlreadyExists => ErrorResponder::Unauthorized(Self::res("Email already exists".to_string(), kind)),
+            ErrorType::EmailAlreadyExists => ErrorResponder::Unauthorized(Self::create_response("Email already exists".to_string(), kind, rollback)),
             // Confirm
-            ErrorType::ConfirmationAlreadyUsed => ErrorResponder::Unauthorized(Self::res("Confirmation code/token already used".to_string(), kind)),
-            ErrorType::ConfirmationNotFound => ErrorResponder::Unauthorized(Self::res("Invalid code/token".to_string(), kind)),
+            ErrorType::ConfirmationAlreadyUsed => ErrorResponder::Unauthorized(Self::create_response("Confirmation code/token already used".to_string(), kind, rollback)),
+            ErrorType::ConfirmationExpired => ErrorResponder::Unauthorized(Self::create_response("Confirmation code/token expired".to_string(), kind, rollback)),
+            ErrorType::ConfirmationTooManyAttempts => ErrorResponder::Unauthorized(Self::create_response("Too many attempts".to_string(), kind, rollback)),
+            ErrorType::ConfirmationNotFound => ErrorResponder::Unauthorized(Self::create_response("Invalid code/token".to_string(), kind, rollback)),
             // Admin
-            ErrorType::UserNotAdmin => ErrorResponder::Unauthorized(Self::res("User is not an admin".to_string(), kind)),
+            ErrorType::UserNotAdmin => ErrorResponder::Unauthorized(Self::create_response("User is not an admin".to_string(), kind, rollback)),
             // Database error
-            ErrorType::DatabaseError(msg, err) => ErrorResponder::InternalError(Self::res(format!("Database error: {} - {}", msg, err), kind)),
-            // Other
-            ErrorType::UnwrapError(msg) => ErrorResponder::InternalError(Self::res(format!("Unwrap error: {}", msg), kind)),
+            ErrorType::DatabaseError(msg, err) => ErrorResponder::InternalError(Self::create_response(format!("Database error: {} - {}", msg, err), kind, rollback)),
         }
     }
-    fn res(msg: String, kind: ErrorTypeKind) -> Json<ErrorResponse> {
-        Json(ErrorResponse {
-            message: msg,
-            error_type: kind,
-        })
-    }
-}
-
-impl From<Error> for ErrorResponder {
-    fn from(value: Error) -> Self {
-        ErrorType::DatabaseError("Diesel error".to_string(), value).to_responder()
+    fn create_response(message: String, error_type: ErrorTypeKind, rollback: bool) -> Json<ErrorResponse> {
+        Json(ErrorResponse { message, error_type, rollback })
     }
 }
 
 
 #[catch(400)]
 pub fn bad_request() -> ErrorResponder {
-    ErrorType::BadRequest.to_responder()
+    ErrorType::BadRequest.res()
 }
 #[catch(401)]
 pub fn unauthorized() -> ErrorResponder {
-    ErrorType::Unauthorized.to_responder()
+    ErrorType::Unauthorized.res()
 }
 #[catch(404)]
 pub fn not_found(req: &Request) -> ErrorResponder {
-    ErrorType::NotFound(req.uri().to_string()).to_responder()
+    ErrorType::NotFound(req.uri().to_string()).res()
 }
 /// When a JSON value type is incorrect
 #[catch(422)]
 pub fn unprocessable_entity() -> ErrorResponder {
-    ErrorType::UnprocessableEntity.to_responder()
+    ErrorType::UnprocessableEntity.res()
 }
 #[catch(500)]
 pub fn internal_error() -> ErrorResponder {
-    ErrorType::InternalError.to_responder()
+    ErrorType::InternalError(String::from("Internal Error")).res()
+}
+
+
+// Transaction encapsulation to handle rollback
+
+pub fn err_transaction<T, F>(conn: &mut DBConn, f: F) -> Result<T, ErrorResponder>
+where
+    F: FnOnce(&mut DBConn) -> Result<T, ErrorResponder>,
+{
+    let result = conn.transaction::<Result<T, ErrorResponder>, ErrorResponder, _>(|conn| {
+        let res = f(conn);
+        if let Err(err) = res {
+            if err.do_rollback() {
+                Err(err)
+            } else {
+                Ok(Err(err))
+            }
+        } else {
+            Ok(res)
+        }
+    });
+    match result {
+        Ok(Ok(res)) => Ok(res),
+        Ok(Err(err)) => Err(err),
+        Err(err) => Err(err),
+    }
 }

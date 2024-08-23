@@ -10,7 +10,7 @@ use crate::database::schema::ConfirmationAction;
 use crate::database::user::User;
 use crate::mailing::mailer::send_rendered_email;
 use crate::utils::auth::DeviceInfo;
-use crate::utils::errors_catcher::ErrorResponder;
+use crate::utils::errors_catcher::{err_transaction, ErrorResponder};
 use crate::utils::utils::left_pad;
 use crate::utils::validation::validate_input;
 use crate::utils::validation::validate_password;
@@ -28,7 +28,7 @@ pub struct SignupData {
 
 #[derive(Serialize, Debug)]
 pub struct SignupResponse {
-    pub(crate) id: u32,
+    pub(crate) user_id: u32,
     pub(crate) code_token: String,
 }
 
@@ -37,7 +37,7 @@ pub fn auth_signup(data: Json<SignupData>, db: &rocket::State<DBPool>, device_in
     validate_input(&data)?;
     let conn = &mut db.get().unwrap();
 
-    conn.transaction(|conn| {
+    err_transaction(conn, |conn| {
         // Inserting user
         let uid = User::create_user(conn, &data.name, &data.email, &data.password)?;
 
@@ -58,7 +58,7 @@ pub fn auth_signup(data: Json<SignupData>, db: &rocket::State<DBPool>, device_in
         send_rendered_email((data.name.clone(), data.email.clone()), subject, "confirm_signup".to_string(), context);
 
         Ok(Json(SignupResponse {
-            id: uid,
+            user_id: uid,
             code_token: hex::encode(confirm_code_token),
         }))
     })

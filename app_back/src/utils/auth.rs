@@ -20,7 +20,7 @@ impl<'r> FromRequest<'r> for User {
         let user_id = request.headers().get_one("X-User-Id").map(|s| s.parse::<u32>().ok()).flatten();
         let auth_token = request.headers().get_one("X-Auth-Token").map(|s| hex::decode(s).ok()).flatten();
         if user_id.is_none() || auth_token.is_none() {
-            return Outcome::Error((Status::Unauthorized, ErrorType::UserNotFound.to_responder()));
+            return Outcome::Error((Status::Unauthorized, ErrorType::UserNotFound.res()));
         }
 
         let db: &DBPool = request.rocket().state::<DBPool>().unwrap();
@@ -30,10 +30,10 @@ impl<'r> FromRequest<'r> for User {
 
         if let Some((user, auth)) = result.ok().flatten() {
             if user.status == UserStatus::Unconfirmed {
-                return Outcome::Error((Status::Unauthorized, ErrorType::UserUnconfirmed.to_responder()));
+                return Outcome::Error((Status::Unauthorized, ErrorType::UserUnconfirmed.res()));
             }
             if user.status == UserStatus::Banned {
-                return Outcome::Error((Status::Unauthorized, ErrorType::UserBanned.to_responder()));
+                return Outcome::Error((Status::Unauthorized, ErrorType::UserBanned.res()));
             }
 
             let result = auth.update_last_use_date(conn);
@@ -42,7 +42,7 @@ impl<'r> FromRequest<'r> for User {
             }
             return Outcome::Success(user);
         }
-        Outcome::Error((Status::Unauthorized, ErrorType::UserNotFound.to_responder()))
+        Outcome::Error((Status::Unauthorized, ErrorType::UserNotFound.res()))
     }
 }
 

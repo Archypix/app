@@ -10,7 +10,7 @@ pub fn validate_input<T: Validate>(data: &Json<T>) -> Result<(), ErrorResponder>
             field.to_string() + ": " + &errors.iter().filter_map(|error| error.clone().message.map(|s| s.to_string())).collect::<Vec<String>>().join(", ")
         }).collect::<Vec<String>>().join(", ");
 
-        return ErrorType::InvalidInput(message).to_err();
+        return ErrorType::InvalidInput(message).res_err();
     }
     Ok(())
 }

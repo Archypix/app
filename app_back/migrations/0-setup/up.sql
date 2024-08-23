@@ -27,7 +27,7 @@ CREATE TABLE auth_tokens
 CREATE TABLE confirmations
 (
     CONSTRAINT PK_confirmations PRIMARY KEY (user_id, action, token),
-    CONSTRAINT UQ_confirmations UNIQUE (user_id, action, code_token, code),
+    CONSTRAINT UQ_confirmations UNIQUE (user_id, action, code_token),
     user_id       INT UNSIGNED                                NOT NULL,
     action        ENUM ('signup', 'signin', 'delete_account') NOT NULL,
     used       BOOLEAN    NOT NULL DEFAULT FALSE,

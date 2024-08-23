@@ -3,7 +3,7 @@ extern crate rocket;
 extern crate tera;
 
 use crate::api::auth::confirm::auth_confirm_code;
-use crate::api::auth::signin::auth_signin;
+use crate::api::auth::signin::{auth_signin, auth_signin_email};
 use crate::api::auth::signup::auth_signup;
 use crate::api::auth::status::auth_status;
 use crate::database::database::{get_connection, get_connection_pool};
@@ -75,7 +75,7 @@ async fn rocket() -> _ {
         .attach(cors_options())
         .manage(get_connection_pool())
         .manage(UserAgentParser::from_path("./static/user_agent_regexes.yaml").unwrap())
-        .mount("/", routes![auth_signup, auth_signin, auth_status, auth_confirm_code])
+        .mount("/", routes![auth_signup, auth_signin, auth_signin_email, auth_status, auth_confirm_code])
         .register("/", catchers![bad_request, unauthorized, not_found, unprocessable_entity, internal_error])
 }
 

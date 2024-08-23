@@ -36,7 +36,7 @@ pub struct ShareAutoAccept {
 impl User {
     pub fn from_id(conn: &mut DBConn, id: &u32) -> Result<User, ErrorResponder> {
         User::from_id_opt(conn, id).and_then(|user_opt| {
-            user_opt.ok_or_else(|| ErrorType::UserNotFound.to_responder())
+            user_opt.ok_or_else(|| ErrorType::UserNotFound.res())
         })
     }
     pub fn from_id_opt(conn: &mut DBConn, id: &u32) -> Result<Option<User>, ErrorResponder> {
@@ -46,13 +46,13 @@ impl User {
             .first::<User>(conn)
             .optional()
             .map_err(|e| {
-                ErrorType::DatabaseError("Failed to get user from id".to_string(), e).to_responder()
+                ErrorType::DatabaseError("Failed to get user from id".to_string(), e).res_rollback()
             })
     }
     pub fn find_logged_in(conn: &mut DBConn, user_id: u32, auth_token: Vec<u8>) -> Result<(User, AuthToken), ErrorResponder> {
         User::find_logged_in_opt(conn, user_id, auth_token)
             .and_then(|data| {
-                data.ok_or_else(|| ErrorType::UserNotFound.to_responder())
+                data.ok_or_else(|| ErrorType::UserNotFound.res())
             })
     }
     pub fn find_logged_in_opt(conn: &mut DBConn, user_id: u32, auth_token: Vec<u8>) -> Result<Option<(User, AuthToken)>, ErrorResponder> {
@@ -63,7 +63,7 @@ impl User {
             .first::<(User, Option<AuthToken>)>(conn)
             .optional()
             .map_err(|e| {
-                ErrorType::DatabaseError("Failed to get user and auth token".to_string(), e).to_responder()
+                ErrorType::DatabaseError("Failed to get user and auth token".to_string(), e).res_rollback()
             })
             .map(|data| {
                 data.and_then(|(user, auth)| {
@@ -79,7 +79,7 @@ impl User {
             .first::<User>(conn)
             .optional()
             .map_err(|e| {
-                ErrorType::DatabaseError("Failed to get user from email".to_string(), e).to_responder()
+                ErrorType::DatabaseError("Failed to get user from email".to_string(), e).res_rollback()
             })
     }
 
@@ -89,7 +89,7 @@ impl User {
 
         if let Some(user) = existing_user {
             if user.status != UserStatus::Unconfirmed {
-                return Err(ErrorType::EmailAlreadyExists.to_responder());
+                return Err(ErrorType::EmailAlreadyExists.res());
             }
             update(users::table)
                 .filter(users::dsl::id.eq(user.id))
@@ -100,7 +100,7 @@ impl User {
                 ))
                 .execute(conn)
                 .map_err(|e| {
-                    ErrorType::DatabaseError("Failed to update user name and password.".to_string(), e).to_responder()
+                    ErrorType::DatabaseError("Failed to update user name and password.".to_string(), e).res_rollback()
                 })?;
 
             // Only the latest singup confirmation is valid
@@ -117,13 +117,13 @@ impl User {
             ))
             .execute(conn)
             .map_err(|e| {
-                ErrorType::DatabaseError("Failed to insert user".to_string(), e).to_responder()
+                ErrorType::DatabaseError("Failed to insert user".to_string(), e).res_rollback()
             })
             .and_then(|_| {
                 select(last_insert_id()).get_result::<u64>(conn)
                     .map(|id| id as u32)
                     .map_err(|e| {
-                        ErrorType::DatabaseError("Failed to get last insert id".to_string(), e).to_responder()
+                        ErrorType::DatabaseError("Failed to get last insert id".to_string(), e).res_rollback()
                     })
             })
     }
@@ -137,7 +137,7 @@ impl User {
             .set(users::dsl::status.eq(status))
             .execute(conn)
             .map_err(|e| {
-                ErrorType::DatabaseError("Failed to update user status".to_string(), e).to_responder()
+                ErrorType::DatabaseError("Failed to update user status".to_string(), e).res_rollback()
             })?;
         Ok(())
     }

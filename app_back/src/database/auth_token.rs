@@ -42,7 +42,7 @@ impl AuthToken {
                     println!("Auth token already exists, trying again.");
                     return AuthToken::insert_token_for_user(conn, user_id, device_info, try_count + 1);
                 }
-                Err(ErrorType::DatabaseError("Failed to insert auth token".to_string(), e).to_responder())
+                ErrorType::DatabaseError("Failed to insert auth token".to_string(), e).res_err_rollback()
             })
     }
     pub fn update_last_use_date(&self, conn: &mut DBConn) -> Result<(), ErrorResponder> {
@@ -57,7 +57,7 @@ impl AuthToken {
                     auth_tokens::dsl::last_use_date.eq(utc_timestamp()),
                 ))
                 .execute(conn).map_err(|e| {
-                ErrorType::DatabaseError("Failed to update auth token use date".to_string(), e).to_responder()
+                ErrorType::DatabaseError("Failed to update auth token use date".to_string(), e).res()
             })?;
         }
         Ok(())
@@ -71,7 +71,7 @@ impl AuthToken {
             .execute(conn)
             .map(|_| ())
             .map_err(|e| {
-                ErrorType::DatabaseError("Failed to delete existing auth tokens".to_string(), e).to_responder()
+                ErrorType::DatabaseError("Failed to delete existing auth tokens".to_string(), e).res_rollback()
             })
     }
 }
@@ -117,29 +117,49 @@ impl Confirmation {
                     println!("Confirmation token already exists, trying again.");
                     return Confirmation::insert_confirmation(conn, user_id, action, device_info, try_count + 1);
                 }
-                Err(ErrorType::DatabaseError("Failed to insert confirmation".to_string(), e).to_responder())
+                ErrorType::DatabaseError("Failed to insert confirmation".to_string(), e).res_err_rollback()
             })
     }
     pub fn check_code_and_mark_as_used(conn: &mut DBConn, user_id: &u32, action: &ConfirmationAction, code_token: &Vec<u8>, code: &u16, max_minutes: i64) -> Result<(), ErrorResponder> {
-        let confirmation = confirmations::table
+        let mut confirmation = confirmations::table
             .filter(confirmations::dsl::user_id.eq(user_id))
             .filter(confirmations::dsl::action.eq(action))
             .filter(confirmations::dsl::code_token.eq(code_token))
-            .filter(confirmations::dsl::code.eq(code))
-            .filter(confirmations::dsl::date.ge(Utc::now().naive_utc() - Duration::minutes(max_minutes)))
             .first::<Confirmation>(conn)
             .optional()
             .map_err(|e| {
-                ErrorType::DatabaseError("Failed to get confirmation".to_string(), e).to_responder()
+                ErrorType::DatabaseError("Failed to get confirmation".to_string(), e).res_rollback()
             })?;
-        if let Some(confirmation) = confirmation {
+        if let Some(mut confirmation) = confirmation {
             if confirmation.used {
-                return Err(ErrorType::ConfirmationAlreadyUsed.to_responder());
+                return ErrorType::ConfirmationAlreadyUsed.res_err();
             }
+            if confirmation.date < Utc::now().naive_utc() - Duration::minutes(max_minutes) {
+                return ErrorType::ConfirmationExpired.res_err();
+            }
+            if confirmation.code_trials >= 3 {
+                return ErrorType::ConfirmationTooManyAttempts.res_err();
+            }
+            if confirmation.code != *code {
+                confirmation.code_trials += 1;
+                update(confirmations::table)
+                    .filter(confirmations::dsl::user_id.eq(user_id))
+                    .filter(confirmations::dsl::action.eq(action))
+                    .filter(confirmations::dsl::code_token.eq(code_token))
+                    .set((
+                        confirmations::dsl::code_trials.eq(confirmation.code_trials),
+                    ))
+                    .execute(conn)
+                    .map_err(|e| {
+                        ErrorType::DatabaseError("Failed to update confirmation code trials".to_string(), e).res_rollback()
+                    })?;
+                return ErrorType::ConfirmationNotFound.res_err();
+            }
+
             confirmation.mark_as_used(conn)?;
             return Ok(());
         }
-        Err(ErrorType::ConfirmationNotFound.to_responder())
+        ErrorType::ConfirmationNotFound.res_err()
     }
     pub fn mark_as_used(&self, conn: &mut DBConn) -> Result<(), ErrorResponder> {
         update(confirmations::table)
@@ -152,7 +172,7 @@ impl Confirmation {
             .execute(conn)
             .map(|_| ())
             .map_err(|e| {
-                ErrorType::DatabaseError("Failed to mark confirmation as used".to_string(), e).to_responder()
+                ErrorType::DatabaseError("Failed to mark confirmation as used".to_string(), e).res_rollback()
             })
     }
     pub fn mark_all_as_used(conn: &mut DBConn, user_id: &u32, action: ConfirmationAction) -> Result<(), ErrorResponder> {
@@ -165,7 +185,7 @@ impl Confirmation {
             .execute(conn)
             .map(|_| ())
             .map_err(|e| {
-                ErrorType::DatabaseError("Failed to mark all confirmations as used".to_string(), e).to_responder()
+                ErrorType::DatabaseError("Failed to mark all confirmations as used".to_string(), e).res_rollback()
             })
     }
 }
@@ -190,7 +210,7 @@ impl TOTPSecret {
             .execute(conn)
             .map(|_| ())
             .map_err(|e| {
-                ErrorType::DatabaseError("Failed to insert TOTP secret".to_string(), e).to_responder()
+                ErrorType::DatabaseError("Failed to insert TOTP secret".to_string(), e).res_rollback()
             })
     }
     pub fn has_user_totp(conn: &mut DBConn, user_id: &u32) -> Result<bool, ErrorResponder> {
@@ -201,7 +221,7 @@ impl TOTPSecret {
             .optional()
             .map(|opt| opt.is_some())
             .map_err(|e| {
-                ErrorType::DatabaseError("Failed to check if user has TOTP".to_string(), e).to_responder()
+                ErrorType::DatabaseError("Failed to check if user has TOTP".to_string(), e).res_rollback()
             })
     }
     pub fn get_user_totp_secrets(conn: &mut DBConn, user_id: &u32) -> Result<Vec<TOTPSecret>, ErrorResponder> {
@@ -210,22 +230,24 @@ impl TOTPSecret {
             .select(TOTPSecret::as_select())
             .load::<TOTPSecret>(conn)
             .map_err(|e| {
-                ErrorType::DatabaseError("Failed to get user TOTP secrets".to_string(), e).to_responder()
+                ErrorType::DatabaseError("Failed to get user TOTP secrets".to_string(), e).res_rollback()
             })
     }
     pub fn check_user_totp(conn: &mut DBConn, user_id: &u32, code: &str) -> Result<bool, ErrorResponder> {
         let secrets = TOTPSecret::get_user_totp_secrets(conn, user_id)?;
         for secret in secrets {
-            if secret.to_TOTP()?.check_current(code) {
+            if secret.to_totp()?.check_current(code).map_err(|_| {
+                ErrorType::InternalError("SystemTimeError occurred when checking TOTP.".to_string()).res()
+            })? {
                 return Ok(true);
             }
         }
         Ok(false)
     }
 
-    fn to_TOTP(&self) -> Result<TOTP, ErrorResponder> {
+    fn to_totp(&self) -> Result<TOTP, ErrorResponder> {
         let rf6238 = Rfc6238::new(6, self.secret.clone(), Some("Archypix".to_string()), "clementgre@archypix.com".to_string())
-            .map_err(ErrorType::UnwrapError("Unable to create Rfc6238 (for TOTP)".to_string()).to_err())?;
-        TOTP::from_rfc6238(rf6238).map_err(ErrorType::UnwrapError("Unable to create TOTP".to_string()).to_err())
+            .map_err(|_| ErrorType::InternalError("Unable to create Rfc6238 (for TOTP)".to_string()).res())?;
+        TOTP::from_rfc6238(rf6238).map_err(|_| ErrorType::InternalError("Unable to create TOTP".to_string()).res())
     }
 }
