@@ -33,10 +33,14 @@ export type SignUpResponse = {
     code_token: string
 }
 
-export type ConfirmSignUpResponse = {
+export type ConfirmSignInUpResponse = {
+    user_id: string
     auth_token: string
+    name: string
+    email: string
+    status: UserStatus
+    redirect_url: String
 }
-export type ConfirmSignInResponse = SignInResponse
 
 export enum ConfirmAction {
     Signup = "Signup",
@@ -71,7 +75,8 @@ export const useUserStore = defineStore('user', () => {
     })
 
     const signInWithEmail2FA = async (user_email: string, password: string) => {
-        return useFetchApi(false, 'POST', null, null, '/auth/signin/email', {email: user_email, password})
+        let redirect_url = useRoute().query?.r?.toString()
+        return useFetchApi(false, 'POST', null, null, '/auth/signin/email', {email: user_email, password, redirect_url})
             // @ts-ignore cause ts wants type void | SignInResponse but it's SignInResponse
             .then((data: SignInEmailResponse) => {
                 id.value = data.user_id
@@ -87,7 +92,7 @@ export const useUserStore = defineStore('user', () => {
             .then((data: SignInResponse) => signInFromData(data))
 
     }
-    const signInFromData = (data: SignInResponse): SignInResponse => {
+    const signInFromData = (data: SignInResponse | ConfirmSignInUpResponse): SignInResponse | ConfirmSignInUpResponse => {
         email.value = data.email
         status.value = data.status
         name.value = data.name
@@ -96,7 +101,8 @@ export const useUserStore = defineStore('user', () => {
         return data
     }
     const signUp = async (name: string, email: string, password: string) => {
-        return useFetchApi(false, 'POST', null, null, '/auth/signup', {name, email, password})
+        let redirect_url = useRoute().query?.r?.toString()
+        return useFetchApi(false, 'POST', null, null, '/auth/signup', {name, email, password, redirect_url})
             // @ts-ignore cause ts wants type void | SignUpResponse but it's SignUpResponse
             .then((data: SignUpResponse) => {
                 id.value = data.user_id
@@ -126,6 +132,8 @@ export const useUserStore = defineStore('user', () => {
                         status.value = UserStatus.Unknown
                     }
                 })
+        } else {
+            status.value = UserStatus.NotConnected
         }
         if (status.value == UserStatus.NotConnected) {
             if (id.value && getConfirmCodeToken(ConfirmAction.Signup)) {
@@ -159,12 +167,19 @@ export const useUserStore = defineStore('user', () => {
                 return data
             })
     }
+    const confirmWithToken = async (action: ConfirmAction, token: string) => {
+        return useFetchApi(true, 'POST', auth_token.value, id.value, '/auth/confirm/token', {action, token})
+            .then((data) => {
+                removeConfirmToken(action)
+                return data
+            })
+    }
 
 
     return {
         status, name, email, id, auth_token,
         isLoggedIn, isUnconfirmed, isAwaitingSignInCode, isAdmin, signIn, signInWithEmail2FA, signInFromData, signUp,
         updateStatus,
-        getConfirmCodeToken, setConfirmCodeToken, removeConfirmToken, confirmWithCode
+        getConfirmCodeToken, setConfirmCodeToken, removeConfirmToken, confirmWithCode, confirmWithToken
     }
 })

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {validateEmail, validatePasswordConfirmation, validateUserName} from "~/composables/validators";
 import {type ApiError} from "~/composables/fetchApi";
-import {ConfirmAction, type ConfirmSignUpResponse, useUserStore} from "~/stores/user";
+import {ConfirmAction, type ConfirmSignInUpResponse, useUserStore} from "~/stores/user";
 import InputCodeInForm from "~/components/inputs/InputCodeInForm.vue";
 
 definePageMeta({
@@ -36,6 +36,24 @@ watch(password_confirm, () => {
   if (password_confirm_small && !validatePasswordConfirmation(password.value, password_confirm.value)) password_confirm_small.value = ''
 })
 
+const catchError = (e: ApiError) => {
+  loading.value = false
+  error.value = e.message
+}
+
+// Confirm from link /signup?id=...&token=...
+const route = useRoute()
+if (route.query.id && route.query.token) {
+  loading.value = true
+  user.id = route.query.id.toString()
+  user.confirmWithToken(ConfirmAction.Signup, route.query.token.toString())
+      // @ts-ignore
+      .then((data: ConfirmSignInUpResponse) => {
+        user.signInFromData(data)
+        navigateTo(data.redirect_url as string, {external: true})
+      }).catch(catchError)
+}
+
 const onSubmitSignup = () => {
   error.value = ''
 
@@ -61,11 +79,7 @@ const onSubmitSignup = () => {
         .then(() => {
           loading.value = false
           password_visible.value = false
-        })
-        .catch((e: ApiError) => {
-          loading.value = false
-          error.value = e.message
-        })
+        }).catch(catchError)
   }
 }
 
@@ -85,22 +99,10 @@ const onSubmitConfirm = () => {
 
   user.confirmWithCode(ConfirmAction.Signup, parseInt(code.value, 10))
       // @ts-ignore
-      .then((data: ConfirmSignUpResponse) => {
-        user.auth_token = data.auth_token
-        user.updateStatus()
-            .then(() => {
-              loading.value = false
-              if (user.isLoggedIn()) {
-                useRouter().push('/')
-              } else {
-                error.value = 'Unable to log you in. Try to login from the sign in page.'
-              }
-            })
-      })
-      .catch((e: ApiError) => {
-        error.value = e.message
-        loading.value = false
-      })
+      .then((data: ConfirmSignInUpResponse) => {
+        user.signInFromData(data)
+        navigateTo(data.redirect_url as string, {external: true})
+      }).catch(catchError)
 }
 
 const onCancelConfirm = () => {

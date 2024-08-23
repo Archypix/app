@@ -30,6 +30,7 @@ export enum ErrorType {
     DatabaseError = 'DatabaseError',
     // Front end
     NoConfirmCodeToken = 'NoConfirmCodeToken',
+    CantReachApi = 'CantReachApi',
 
 }
 
@@ -82,6 +83,10 @@ export const useFetchApi = async function <B, R>(ssr: boolean = false, method: s
             let error_data = error.value?.data ?? null;
             if (error_data == null) {
                 console.error('useFetchApi', 'Unknown error:', error.value?.statusCode, error.value?.statusMessage, error)
+                error_data = {
+                    error_type: ErrorType.CantReachApi,
+                    message: 'Unable to reach the API, please try again later'
+                }
             } else {
                 console.log('useFetchApi', 'Known error:', error_data.error_type, '-', error_data.message)
             }

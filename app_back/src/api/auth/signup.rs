@@ -24,7 +24,7 @@ pub struct SignupData {
     email: String,
     #[validate(custom(function = validate_password))]
     password: String,
-    redirect_url: String,
+    redirect_url: Option<String>,
 }
 
 #[derive(Serialize, Debug)]
@@ -43,7 +43,7 @@ pub fn auth_signup(data: Json<SignupData>, db: &rocket::State<DBPool>, device_in
         let uid = User::create_user(conn, &data.name, &data.email, &data.password)?;
 
         // Inserting confirmation
-        let (confirm_token, confirm_code_token, confirm_code) = Confirmation::insert_confirmation(conn, uid, ConfirmationAction::Signup, &device_info, &Some(data.redirect_url.clone()), 0)?;
+        let (confirm_token, confirm_code_token, confirm_code) = Confirmation::insert_confirmation(conn, uid, ConfirmationAction::Signup, &device_info, &data.redirect_url, 0)?;
         let confirm_code_str = left_pad(&confirm_code.to_string(), '0', 4);
 
         // Sending email
