@@ -11,7 +11,7 @@ use crate::database::user::User;
 use crate::mailing::mailer::send_rendered_email;
 use crate::utils::auth::DeviceInfo;
 use crate::utils::errors_catcher::{err_transaction, ErrorResponder};
-use crate::utils::utils::left_pad;
+use crate::utils::utils::{get_frontend_host, left_pad};
 use crate::utils::validation::validate_input;
 use crate::utils::validation::validate_password;
 use crate::utils::validation::validate_user_name;
@@ -24,6 +24,7 @@ pub struct SignupData {
     email: String,
     #[validate(custom(function = validate_password))]
     password: String,
+    redirect_url: String,
 }
 
 #[derive(Serialize, Debug)]
@@ -42,12 +43,11 @@ pub fn auth_signup(data: Json<SignupData>, db: &rocket::State<DBPool>, device_in
         let uid = User::create_user(conn, &data.name, &data.email, &data.password)?;
 
         // Inserting confirmation
-        let (confirm_token, confirm_code_token, confirm_code) = Confirmation::insert_confirmation(conn, uid, ConfirmationAction::Signup, &device_info, 0)?;
+        let (confirm_token, confirm_code_token, confirm_code) = Confirmation::insert_confirmation(conn, uid, ConfirmationAction::Signup, &device_info, &Some(data.redirect_url.clone()), 0)?;
         let confirm_code_str = left_pad(&confirm_code.to_string(), '0', 4);
 
         // Sending email
-        let signup_url = format!("{}/signup/confirm?id={}&token={}",
-                                 env::var("FRONTEND_HOST").expect("FRONTEND_HOST must be set"), uid, hex::encode(&confirm_token));
+        let signup_url = format!("{}/signup?id={}&token={}", get_frontend_host(), uid, hex::encode(&confirm_token));
         let subject = "Confirm your email address".to_string();
         let mut context = tera::Context::new();
         context.insert("name", &data.name);

@@ -3,7 +3,7 @@ CREATE TABLE users
     CONSTRAINT PK_users PRIMARY KEY (id),
     id               INT UNSIGNED AUTO_INCREMENT,
     name             VARCHAR(32)                                       NOT NULL,
-    email            VARCHAR(256)                                      NOT NULL UNIQUE,
+    email VARCHAR(320) NOT NULL UNIQUE,
     password_hash    CHAR(60)                                          NOT NULL,
     creation_date    DATETIME                                          NOT NULL DEFAULT (UTC_TIMESTAMP()),
     status           ENUM ('unconfirmed', 'normal', 'banned', 'admin') NOT NULL DEFAULT 'unconfirmed',
@@ -36,6 +36,7 @@ CREATE TABLE confirmations
     code_token BINARY(16) NOT NULL,
     code          SMALLINT UNSIGNED                           NOT NULL,
     code_trials   TINYINT UNSIGNED                            NOT NULL DEFAULT 0,
+    redirect_url VARCHAR(255),
     device_string VARCHAR(128),
     ip_address    VARBINARY(16),
     FOREIGN KEY (user_id) REFERENCES users (id)

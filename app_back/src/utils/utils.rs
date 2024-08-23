@@ -1,5 +1,5 @@
-use rand::RngCore;
 use rand::rngs::OsRng;
+use rand::RngCore;
 
 pub fn random_token(bytes: usize) -> Vec<u8> {
     let mut auth_token = vec![0u8; bytes];
@@ -18,4 +18,8 @@ pub fn left_pad(string: &str, char: char, target_length: usize) -> String {
     }
     res.push_str(string);
     res
+}
+
+pub fn get_frontend_host() -> String {
+    std::env::var("FRONTEND_HOST").expect("FRONTEND_HOST must be set")
 }

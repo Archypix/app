@@ -1,6 +1,7 @@
 use lazy_static::lazy_static;
 use std::env;
 
+use crate::utils::utils::get_frontend_host;
 use mail_send::mail_builder::MessageBuilder;
 use mail_send::SmtpClientBuilder;
 use rocket::serde::json::from_str;
@@ -27,7 +28,7 @@ pub fn send_rendered_email(to: (String, String), subject: String, template: Stri
     send_email(to, subject, text, html);
 }
 fn render_email_context(template: String, mut context: Context) -> String {
-    context.insert("archypix_url", &env::var("FRONTEND_HOST").expect("FRONTEND_HOST must be set"));
+    context.insert("archypix_url", &get_frontend_host());
     TEMPLATES.render(format!("{}.html", template).as_str(), &context)
             .expect("Unable to render email template.")
 }

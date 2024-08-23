@@ -90,12 +90,13 @@ pub struct Confirmation {
     pub code_token: Vec<u8>,
     pub code: u16,
     pub code_trials: u8,
+    pub redirect_url: Option<String>,
     pub device_string: Option<String>,
     pub ip_address: Option<Vec<u8>>,
 }
 
 impl Confirmation {
-    pub(crate) fn insert_confirmation(conn: &mut DBConn, user_id: u32, action: ConfirmationAction, device_info: &DeviceInfo, try_count: u8) -> Result<(Vec<u8>, Vec<u8>, u16), ErrorResponder> {
+    pub(crate) fn insert_confirmation(conn: &mut DBConn, user_id: u32, action: ConfirmationAction, device_info: &DeviceInfo, redirect_url: &Option<String>, try_count: u8) -> Result<(Vec<u8>, Vec<u8>, u16), ErrorResponder> {
         let token = random_token(16);
         let code_token = random_token(16);
         let code = random_code(4) as u16;
@@ -107,6 +108,7 @@ impl Confirmation {
                 confirmations::dsl::token.eq(&token),
                 confirmations::dsl::code_token.eq(&code_token),
                 confirmations::dsl::code.eq(&code),
+                confirmations::dsl::redirect_url.eq(redirect_url),
                 confirmations::dsl::device_string.eq(&device_info.device_string),
                 confirmations::dsl::ip_address.eq(inet6_aton(&device_info.ip_address))
             ))
@@ -115,12 +117,12 @@ impl Confirmation {
             .or_else(|e| {
                 if (is_error_duplicate_key(&e, "confirmations.PRIMARY") || is_error_duplicate_key(&e, "confirmations.UQ_confirmations")) && try_count < 3 {
                     println!("Confirmation token already exists, trying again.");
-                    return Confirmation::insert_confirmation(conn, user_id, action, device_info, try_count + 1);
+                    return Confirmation::insert_confirmation(conn, user_id, action, device_info, redirect_url, try_count + 1);
                 }
                 ErrorType::DatabaseError("Failed to insert confirmation".to_string(), e).res_err_rollback()
             })
     }
-    pub fn check_code_and_mark_as_used(conn: &mut DBConn, user_id: &u32, action: &ConfirmationAction, code_token: &Vec<u8>, code: &u16, max_minutes: i64) -> Result<(), ErrorResponder> {
+    pub fn check_code_and_mark_as_used(conn: &mut DBConn, user_id: &u32, action: &ConfirmationAction, code_token: &Vec<u8>, code: &u16, max_minutes: i64) -> Result<Option<String>, ErrorResponder> {
         let mut confirmation = confirmations::table
             .filter(confirmations::dsl::user_id.eq(user_id))
             .filter(confirmations::dsl::action.eq(action))
@@ -157,7 +159,29 @@ impl Confirmation {
             }
 
             confirmation.mark_as_used(conn)?;
-            return Ok(());
+            return Ok(confirmation.redirect_url);
+        }
+        ErrorType::ConfirmationNotFound.res_err()
+    }
+    pub fn check_token_and_mark_as_used(conn: &mut DBConn, user_id: &u32, action: &ConfirmationAction, token: &Vec<u8>, max_minutes: i64) -> Result<Option<String>, ErrorResponder> {
+        let mut confirmation = confirmations::table
+            .filter(confirmations::dsl::user_id.eq(user_id))
+            .filter(confirmations::dsl::action.eq(action))
+            .filter(confirmations::dsl::token.eq(token))
+            .first::<Confirmation>(conn)
+            .optional()
+            .map_err(|e| {
+                ErrorType::DatabaseError("Failed to get confirmation".to_string(), e).res_rollback()
+            })?;
+        if let Some(mut confirmation) = confirmation {
+            if confirmation.used {
+                return ErrorType::ConfirmationAlreadyUsed.res_err();
+            }
+            if confirmation.date < Utc::now().naive_utc() - Duration::minutes(max_minutes) {
+                return ErrorType::ConfirmationExpired.res_err();
+            }
+            confirmation.mark_as_used(conn)?;
+            return Ok(confirmation.redirect_url);
         }
         ErrorType::ConfirmationNotFound.res_err()
     }

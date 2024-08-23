@@ -64,6 +64,7 @@ table! {
         code_token -> Binary,
         code -> Unsigned<Smallint>,
         code_trials -> Unsigned<Tinyint>,
+        redirect_url -> Nullable<Varchar>,
         device_string -> Nullable<Varchar>,
         ip_address -> Nullable<Varbinary>,
     }

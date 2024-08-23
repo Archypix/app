@@ -5,7 +5,7 @@ use crate::database::user::User;
 use crate::mailing::mailer::send_rendered_email;
 use crate::utils::auth::DeviceInfo;
 use crate::utils::errors_catcher::{err_transaction, ErrorResponder, ErrorType};
-use crate::utils::utils::left_pad;
+use crate::utils::utils::{get_frontend_host, left_pad};
 use diesel::Connection;
 use pwhash::bcrypt;
 use rocket::serde::json::Json;
@@ -17,21 +17,22 @@ pub struct SigninData {
     email: String,
     password: String,
     totp_code: Option<String>,
+    redirect_url: Option<String>
 }
 
 #[derive(Serialize, Debug)]
 pub struct SigninResponse {
-    pub(crate) status: UserStatus,
-    pub(crate) user_id: u32,
-    pub(crate) name: String,
-    pub(crate) email: String,
-    pub(crate) auth_token: String,
+    pub status: UserStatus,
+    pub user_id: u32,
+    pub name: String,
+    pub email: String,
+    pub auth_token: String,
 }
 
 #[derive(Serialize, Debug)]
 pub struct SigninEmailResponse {
-    pub(crate) user_id: u32,
-    pub(crate) code_token: String,
+    pub user_id: u32,
+    pub code_token: String
 }
 
 #[post("/auth/signin", data = "<data>")]
@@ -73,12 +74,11 @@ pub fn auth_signin_email(data: Json<SigninData>, db: &rocket::State<DBPool>, dev
     err_transaction(conn, |conn| {
         let user = check_user_password_and_status(conn, &data.email, &data.password)?;
 
-        let (token, code_token, code) = Confirmation::insert_confirmation(conn, user.id, ConfirmationAction::Signin, &device_info, 0)?;
+        let (token, code_token, code) = Confirmation::insert_confirmation(conn, user.id, ConfirmationAction::Signin, &device_info, &data.redirect_url, 0)?;
         let code_str = left_pad(&code.to_string(), '0', 4);
 
         // Sending email
-        let signin_url = format!("{}/signin/confirm?id={}&token={}",
-                                 env::var("FRONTEND_HOST").expect("FRONTEND_HOST must be set"), user.id, hex::encode(&token));
+        let signin_url = format!("{}/signin?id={}&token={}", get_frontend_host(), user.id, hex::encode(&token));
         let subject = "Confirm your email address".to_string();
         let mut context = tera::Context::new();
         context.insert("name", &user.name);
