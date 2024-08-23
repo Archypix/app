@@ -7,6 +7,10 @@ const props = defineProps({
   small_error: Boolean,
   disable_error_auto_remove: Boolean,
   default_focus: Boolean,
+  length: {
+    type: Number,
+    default: 4
+  }
 })
 
 const emit = defineEmits(['update:value', 'update:small', 'update:password_visible'])
@@ -41,6 +45,7 @@ onMounted(() => {
 
     <InputOtp
         :id="id"
+        :length="props.length"
         v-model="local_value"
         :aria-labelledby="name"
         :invalid="small_error && small?.length != 0"

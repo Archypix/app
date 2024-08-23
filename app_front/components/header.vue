@@ -33,7 +33,7 @@ let isLoggedIn = user.isLoggedIn(false, true);
               <nuxt-link to="/"><span class="pi pi-images"/>Archypix webapp</nuxt-link>
             </li>
           </template>
-          <template v-if="user.isAdmin()">
+          <template v-if="user.isAdmin">
             <li>
               <nuxt-link to="/admin"><span class="pi pi-lock"/>Admin</nuxt-link>
             </li>

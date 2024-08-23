@@ -28,8 +28,6 @@ export enum ErrorType {
     UserNotAdmin = 'UserNotAdmin',
     // Database error
     DatabaseError = 'DatabaseError',
-    // Other
-    UnwrapError = 'UnwrapError',
     // Front end
     NoConfirmCodeToken = 'NoConfirmCodeToken',
 

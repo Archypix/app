@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {validateEmail, validatePasswordConfirmation, validateUserName} from "~/composables/validators";
 import {type ApiError} from "~/composables/fetchApi";
-import {ConfirmAction, type ConfirmResponse, useUserStore} from "~/stores/user";
+import {ConfirmAction, type ConfirmSignUpResponse, useUserStore} from "~/stores/user";
 import InputCodeInForm from "~/components/inputs/InputCodeInForm.vue";
 
 definePageMeta({
@@ -12,6 +12,9 @@ useHead({
 })
 
 const user = useUserStore()
+if (user.isLoggedIn()) {
+  useRouter().push('/')
+}
 
 const error = ref('')
 const loading = ref(false)
@@ -54,7 +57,7 @@ const onSubmitSignup = () => {
 
   if (!name_error && !email_error && !password_error && !password_match_error) {
     loading.value = true
-    useUserStore().signUp(name.value, email.value, password.value)
+    user.signUp(name.value, email.value, password.value)
         .then(() => {
           loading.value = false
           password_visible.value = false
@@ -82,7 +85,7 @@ const onSubmitConfirm = () => {
 
   user.confirmWithCode(ConfirmAction.Signup, parseInt(code.value, 10))
       // @ts-ignore
-      .then((data: ConfirmResponse) => {
+      .then((data: ConfirmSignUpResponse) => {
         user.auth_token = data.auth_token
         user.updateStatus()
             .then(() => {
@@ -90,7 +93,7 @@ const onSubmitConfirm = () => {
               if (user.isLoggedIn()) {
                 useRouter().push('/')
               } else {
-                error.value = 'Unable to log you in. Try to login manually.'
+                error.value = 'Unable to log you in. Try to login from the sign in page.'
               }
             })
       })

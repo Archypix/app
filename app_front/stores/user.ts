@@ -1,6 +1,5 @@
 import type {Ref} from "vue";
 import type {ApiError} from "~/composables/fetchApi";
-import {super} from "@babel/types";
 
 export enum UserStatus {
     Unconfirmed = 'Unconfirmed',
@@ -8,7 +7,8 @@ export enum UserStatus {
     Banned = 'Banned',
     Admin = 'Admin',
     NotConnected = 'NotConnected',
-    Unknown = 'Unknown'
+    Unknown = 'Unknown',
+    AwaitingSignInCode = 'AwaitingSignInCode',
 }
 
 export type AuthStatus = {
@@ -21,17 +21,22 @@ export type SignInResponse = {
     user_id: string
     auth_token: string
     name: string
+    email: string
     status: UserStatus
 }
-
+export type SignInEmailResponse = {
+    user_id: string
+    code_token: string
+}
 export type SignUpResponse = {
-    id: string
+    user_id: string
     code_token: string
 }
 
-export type ConfirmResponse = {
-    auth_token: string | null
+export type ConfirmSignUpResponse = {
+    auth_token: string
 }
+export type ConfirmSignInResponse = SignInResponse
 
 export enum ConfirmAction {
     Signup = "Signup",
@@ -58,45 +63,45 @@ export const useUserStore = defineStore('user', () => {
     const isUnconfirmed = computed(() => {
         return status.value == UserStatus.Unconfirmed
     })
-    const isAdmin = () => {
+    const isAdmin = computed(() => {
         return status.value == UserStatus.Admin
-    }
-    const signIn = async (user_email: string, password: string) => {
+    })
+    const isAwaitingSignInCode = computed(() => {
+        return status.value == UserStatus.AwaitingSignInCode
+    })
 
-        return useFetchApi(false, 'POST', null, null, '/auth/signin', {user_email, password})
-            .catch((error: ApiError | null) => {
-                if (error?.error_type === ErrorType.Unauthorized) {
-                    status.value = UserStatus.NotConnected
-                } else {
-                    status.value = UserStatus.Unknown
-                }
-                throw error
-            })
+    const signInWithEmail2FA = async (user_email: string, password: string) => {
+        return useFetchApi(false, 'POST', null, null, '/auth/signin/email', {email: user_email, password})
             // @ts-ignore cause ts wants type void | SignInResponse but it's SignInResponse
-            .then((data: SignInResponse) => {
-                email.value = user_email
-                status.value = data.status
-                name.value = data.name
+            .then((data: SignInEmailResponse) => {
                 id.value = data.user_id
-                auth_token.value = data.auth_token
+                setConfirmCodeToken(ConfirmAction.Signin, data.code_token, 15)
+                status.value = UserStatus.AwaitingSignInCode
                 return data
             })
     }
+    const signIn = async (user_email: string, password: string, totp_code: string | undefined = undefined) => {
+        if (!totp_code) totp_code = undefined
+        return useFetchApi(false, 'POST', null, null, '/auth/signin', {email: user_email, password, totp_code})
+            // @ts-ignore cause ts wants type void | SignInResponse but it's SignInResponse
+            .then((data: SignInResponse) => signInFromData(data))
+
+    }
+    const signInFromData = (data: SignInResponse): SignInResponse => {
+        email.value = data.email
+        status.value = data.status
+        name.value = data.name
+        id.value = data.user_id
+        auth_token.value = data.auth_token
+        return data
+    }
     const signUp = async (name: string, email: string, password: string) => {
         return useFetchApi(false, 'POST', null, null, '/auth/signup', {name, email, password})
-            .catch((error: ApiError | null) => {
-                if (error?.error_type === ErrorType.Unauthorized) {
-                    status.value = UserStatus.NotConnected
-                } else {
-                    status.value = UserStatus.Unknown
-                }
-                throw error
-            })
             // @ts-ignore cause ts wants type void | SignUpResponse but it's SignUpResponse
             .then((data: SignUpResponse) => {
-                status.value = UserStatus.Unconfirmed
-                id.value = data.id
+                id.value = data.user_id
                 setConfirmCodeToken(ConfirmAction.Signup, data.code_token, 15)
+                status.value = UserStatus.Unconfirmed
                 return data
             })
     }
@@ -106,25 +111,28 @@ export const useUserStore = defineStore('user', () => {
         // auth_token = useCookie('px_auth_token')
         if (id.value && auth_token.value) {
             await useGetApi(true, '/auth/status')
-                .catch((error: ApiError | null) => {
-                    if (error && error.error_type === ErrorType.Unauthorized) {
-                        status.value = UserStatus.NotConnected
-                    } else {
-                        status.value = UserStatus.Unknown
-                    }
-                    // id.value = null
-                    // auth_token.value = null
-                })
                 // @ts-ignore cause ts wants type void | AuthStatus but it's AuthStatus
                 .then((data: AuthStatus) => {
                     status.value = data.status
                     name.value = data.name
                     email.value = data.email
                 })
-        } else if (id.value && getConfirmCodeToken(ConfirmAction.Signup)) {
-            status.value = UserStatus.Unconfirmed
-        } else {
-            status.value = UserStatus.NotConnected
+                .catch((error: ApiError | null) => {
+                    if (error && error.error_type === ErrorType.Unauthorized) {
+                        status.value = UserStatus.NotConnected
+                        id.value = null
+                        auth_token.value = null
+                    } else {
+                        status.value = UserStatus.Unknown
+                    }
+                })
+        }
+        if (status.value == UserStatus.NotConnected) {
+            if (id.value && getConfirmCodeToken(ConfirmAction.Signup)) {
+                status.value = UserStatus.Unconfirmed
+            } else if (id.value && getConfirmCodeToken(ConfirmAction.Signin)) {
+                status.value = UserStatus.AwaitingSignInCode
+            }
         }
     }
 
@@ -143,15 +151,19 @@ export const useUserStore = defineStore('user', () => {
         const code_token = getConfirmCodeToken(action)
         if (!code_token) return Promise.reject({
             error_type: ErrorType.NoConfirmCodeToken,
-            message: 'No confirm code token'
+            message: 'No confirm code token found, please try again'
         } as ApiError)
         return useFetchApi(false, 'POST', auth_token.value, id.value, '/auth/confirm/code', {action, code, code_token})
+            .then((data) => {
+                removeConfirmToken(action)
+                return data
+            })
     }
 
 
     return {
         status, name, email, id, auth_token,
-        isLoggedIn, isUnconfirmed, isAdmin, signIn, signUp,
+        isLoggedIn, isUnconfirmed, isAwaitingSignInCode, isAdmin, signIn, signInWithEmail2FA, signInFromData, signUp,
         updateStatus,
         getConfirmCodeToken, setConfirmCodeToken, removeConfirmToken, confirmWithCode
     }
