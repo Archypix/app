@@ -5,7 +5,7 @@ use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome};
 use rocket::Request;
 use rocket_okapi::gen::OpenApiGenerator;
-use rocket_okapi::okapi::openapi3::{Parameter, ParameterValue};
+use rocket_okapi::okapi::openapi3::{Parameter, ParameterValue, SecurityRequirement, SecurityScheme, SecuritySchemeData};
 use rocket_okapi::request::{OpenApiFromRequest, RequestHeaderInput};
 use user_agent_parser::{Device, Engine, OS};
 
@@ -15,6 +15,12 @@ use crate::database::schema::*;
 use crate::database::user::User;
 use crate::utils::errors_catcher::{ErrorResponder, ErrorType};
 
+/// Request Guard for an authenticated user that is not banned nor unconfirmed.
+/// Uses the headers X-User-Id and X-Auth-Token, return the user object.
+/// Updates the auth token last use date.
+/// - Throw `UserNotFound` if the credentials are invalid.
+/// - Throw `UserUnconfirmed` if the user is unconfirmed (account not email verified).
+/// - Throw `UserBanned` if the user is banned.
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for User {
     type Error = ErrorResponder;
@@ -48,28 +54,28 @@ impl<'r> FromRequest<'r> for User {
         Outcome::Error((Status::Unauthorized, ErrorType::UserNotFound.res()))
     }
 }
+/// OpenAPI documentation for the User request guard.
+/// rocket_okapi supports adding only a single header requirement for a request guard,
+/// then this one only requires the X-Auth-Token header.
+/// (see [`UserAuthInfo`] for the X-User-Id header)
 impl OpenApiFromRequest<'_> for User {
     fn from_request_input(gen: &mut OpenApiGenerator, name: String, required: bool) -> rocket_okapi::Result<RequestHeaderInput> {
-        // Specify needed header: X-User-Id and X-Auth-Token
-        Ok(RequestHeaderInput::Parameter(Parameter {
-            name: "X-User-Id".to_string(),
-            location: "".to_string(),
-            description: None,
-            required: false,
-            deprecated: false,
-            allow_empty_value: false,
-            value: ParameterValue::Schema {
-                style: None,
-                explode: None,
-                allow_reserved: false,
-                schema: gen.json_schema::<u32>(),
-                example: None,
-                examples: None,
+        let mut requirement = SecurityRequirement::new();
+        requirement.insert("X-Auth-Token".to_string(), Vec::new());
+        Ok(RequestHeaderInput::Security(
+            "X-Auth-Token".to_string(),
+            SecurityScheme {
+                description: Some("Requires a valid user id (X-User-Id) and auth token (X-Auth-Token) for authentication.".to_string()),
+                data: SecuritySchemeData::ApiKey {
+                    name: "X-Auth-Token".to_string(),
+                    location: "header".to_string(),
+                },
+                extensions: Default::default(),
             },
-            extensions: Default::default(),
-        }))
+            requirement))
     }
 }
+/// Request Guard with the only purpose of extracting the user id and auth token from the headers.
 pub struct UserAuthInfo {
     pub user_id: Option<u32>,
     pub auth_token: Option<Vec<u8>>,
@@ -86,36 +92,34 @@ impl<'r> FromRequest<'r> for UserAuthInfo {
         })
     }
 }
+/// OpenAPI documentation for the UserAuthInfo request guard.
+/// rocket_okapi supports adding only a single header requirement for a request guard,
+/// then this one only requires the X-User-Id header.
+/// (see [`User`] for the X-Auth-Token header)
 impl OpenApiFromRequest<'_> for UserAuthInfo {
     fn from_request_input(gen: &mut OpenApiGenerator, name: String, required: bool) -> rocket_okapi::Result<RequestHeaderInput> {
-        // Specify needed header: X-User-Id and X-Auth-Token
-        Ok(RequestHeaderInput::Parameter(Parameter {
-            name: "X-User-Id".to_string(),
-            location: "".to_string(),
-            description: None,
-            required: false,
-            deprecated: false,
-            allow_empty_value: false,
-            value: ParameterValue::Schema {
-                style: None,
-                explode: None,
-                allow_reserved: false,
-                schema: gen.json_schema::<u32>(),
-                example: None,
-                examples: None,
+        let mut requirement = SecurityRequirement::new();
+        requirement.insert("X-User-Id".to_string(), Vec::new());
+        Ok(RequestHeaderInput::Security(
+            "X-User-Id test".to_string(),
+            SecurityScheme {
+                description: Some("Requires at least a valid user id (X-User-Id) for authentication. An auth token (X-Auth-Token) can also be provided, but will rarely be used.".to_string()),
+                data: SecuritySchemeData::ApiKey {
+                    name: "X-User-Id".to_string(),
+                    location: "header".to_string(),
+                },
+                extensions: Default::default(),
             },
-            extensions: Default::default(),
-        }))
+            requirement))
     }
 }
 
-
+/// Request Guard for extracting the device information from the User-Agent header.
 #[derive(Debug)]
 pub struct DeviceInfo {
     pub(crate) device_string: String,
     pub(crate) ip_address: Option<String>,
 }
-
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for DeviceInfo {
     type Error = ();
@@ -147,6 +151,7 @@ impl<'r> FromRequest<'r> for DeviceInfo {
         })
     }
 }
+/// OpenAPI documentation for the DeviceInfo request guard.
 impl OpenApiFromRequest<'_> for DeviceInfo {
     fn from_request_input(gen: &mut OpenApiGenerator, name: String, required: bool) -> rocket_okapi::Result<RequestHeaderInput> {
         // Specify needed header: user-agent
@@ -170,6 +175,7 @@ impl OpenApiFromRequest<'_> for DeviceInfo {
     }
 }
 
+/// Helper function to create a device string from the device, os and engine information.
 fn device_str(device: Device, os: OS, engine: Engine) -> String {
     let mut device_str = String::new();
 

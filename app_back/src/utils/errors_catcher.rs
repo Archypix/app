@@ -12,6 +12,7 @@ use serde::Serialize;
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 
+/// Rocket Responder for all errors
 #[derive(Responder, Debug)]
 pub enum ErrorResponder {
     #[response(status = 400, content_type = "json")]
@@ -25,18 +26,15 @@ pub enum ErrorResponder {
     #[response(status = 500, content_type = "json")]
     InternalError(Json<ErrorResponse>),
 }
+/// Convert Diesel [`Error`] to [`ErrorResponder`]
 impl From<Error> for ErrorResponder {
     fn from(value: Error) -> Self {
         // Rollback all uncaught errors
         ErrorType::DatabaseError("Diesel error".to_string(), value).res_rollback()
     }
 }
-impl OpenApiResponderInner for ErrorResponder {
-    fn responses(gen: &mut OpenApiGenerator) -> rocket_okapi::Result<Responses> {
-        Ok(Responses::default())
-    }
-}
 impl ErrorResponder {
+    /// Extract the rollback boolean value from the inner [`ErrorResponse`] struct.
     pub fn do_rollback(&self) -> bool {
         match self {
             ErrorResponder::BadRequest(json) => json,
@@ -47,14 +45,23 @@ impl ErrorResponder {
         }.rollback
     }
 }
+/// Dummy implementation for OpenApi
+impl OpenApiResponderInner for ErrorResponder {
+    fn responses(gen: &mut OpenApiGenerator) -> rocket_okapi::Result<Responses> {
+        Ok(Responses::default())
+    }
+}
 
+/// Error response data struct
 #[derive(JsonSchema, Serialize, Debug)]
 pub struct ErrorResponse {
     pub error_type: ErrorTypeKind,
     pub message: String,
+    // Rollback the diesel transaction if true
     pub rollback: bool,
 }
 
+/// All possible error types that can be converted to [`ErrorResponse`] and then [`ErrorResponder`]
 #[derive(EnumKind, Debug, Display)]
 #[enum_kind(ErrorTypeKind, derive(EnumIter, Display, JsonSchema, Serialize))]
 pub enum ErrorType {
@@ -88,18 +95,24 @@ pub enum ErrorType {
 }
 
 impl ErrorType {
+    /// Convert to a result of [`ErrorResponder`] without Diesel transaction rollback
     pub fn res_err<T>(self) -> Result<T, ErrorResponder> {
         Err(self.to_responder(false))
     }
+    /// Convert to a result of [`ErrorResponder`] with Diesel transaction rollback
     pub fn res_err_rollback<T>(self) -> Result<T, ErrorResponder> {
         Err(self.to_responder(true))
     }
+    /// Convert to a [`ErrorResponder`] without Diesel transaction rollback
     pub fn res(self) -> ErrorResponder {
         self.to_responder(false)
     }
+    /// Convert to a [`ErrorResponder`] with Diesel transaction rollback
     pub fn res_rollback(self) -> ErrorResponder {
         self.to_responder(true)
     }
+
+    /// Converts to a [`ErrorResponder`]
     fn to_responder(self, rollback: bool) -> ErrorResponder {
         let kind = ErrorTypeKind::from(&self);
         match self {
@@ -133,6 +146,7 @@ impl ErrorType {
             ErrorType::DatabaseError(msg, err) => ErrorResponder::InternalError(Self::create_response(format!("Database error: {} - {}", msg, err), kind, rollback)),
         }
     }
+    /// Converts to an [`ErrorResponse`] struct
     fn create_response(message: String, error_type: ErrorTypeKind, rollback: bool) -> Json<ErrorResponse> {
         Json(ErrorResponse { message, error_type, rollback })
     }
@@ -162,8 +176,8 @@ pub fn internal_error() -> ErrorResponder {
 }
 
 
-// Transaction encapsulation to handle rollback
-
+/// Diesel transaction encapsulation to handle rollback
+/// depending on the rollback boolean value contained in the returned Err(ErrorResponder) struct.
 pub fn err_transaction<T, F>(conn: &mut DBConn, f: F) -> Result<T, ErrorResponder>
 where
     F: FnOnce(&mut DBConn) -> Result<T, ErrorResponder>,
@@ -174,6 +188,7 @@ where
             if err.do_rollback() {
                 Err(err)
             } else {
+                // Returns Ok(Err(ErrorResponder)) to avoid rollback
                 Ok(Err(err))
             }
         } else {

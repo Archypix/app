@@ -36,6 +36,12 @@ pub struct SigninEmailResponse {
     pub code_token: String
 }
 
+/// Endpoint to sign in a user with an email, password, and optionally a TOTP code.
+/// If the user requires 2FA, it will either:
+/// - Throw `TFARequired` if no TOTP code is provided, but the user has a TOTP secret.
+/// - Throw `TFARequiredOverEmail` if the user has no TOTP secret; in this case, the login should
+///   be done again on `POST /auth/signin/email` to request TFA over email.
+/// - May log in using the TOTP code, throw `InvalidTOTPCode` if the code is invalid.
 #[openapi(tag = "Authentication")]
 #[post("/auth/signin", data = "<data>")]
 pub fn auth_signin(data: Json<SigninData>, db: &rocket::State<DBPool>, device_info: DeviceInfo) -> Result<Json<SigninResponse>, ErrorResponder> {
@@ -70,6 +76,9 @@ pub fn auth_signin(data: Json<SigninData>, db: &rocket::State<DBPool>, device_in
     })
 }
 
+
+/// Login endpoint for users that require 2FA; sends a confirmation email.
+/// The user must provide an email and password, and optionally a redirect URL for the email link.
 #[openapi(tag = "Authentication")]
 #[post("/auth/signin/email", data = "<data>")]
 pub fn auth_signin_email(data: Json<SigninData>, db: &rocket::State<DBPool>, device_info: DeviceInfo) -> Result<Json<SigninEmailResponse>, ErrorResponder> {
@@ -98,7 +107,10 @@ pub fn auth_signin_email(data: Json<SigninData>, db: &rocket::State<DBPool>, dev
     })
 }
 
-
+/// Checks the user's email and password, returning the user if the credentials are correct.
+/// - Throw `InvalidEmailOrPassword` if the email or password is incorrect.
+/// - Throw `UserBanned` if the user is banned.
+/// - Throw `UserUnconfirmed` if the user is unconfirmed (account not email verified).
 fn check_user_password_and_status(conn: &mut DBConn, email: &str, password: &str) -> Result<User, ErrorResponder> {
     let user = User::find_by_email_opt(conn, email)
         .and_then(|user| {

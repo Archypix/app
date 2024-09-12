@@ -12,10 +12,12 @@ pub struct StatusResponse {
     pub(crate) status: UserStatus,
 }
 
+/// Get the account information of the authenticated user.
+/// If the credentials are invalid or match an unconfirmed or banned user, it returns an error from
+/// the User Request Guard.
 #[openapi(tag = "Authentication")]
 #[get("/auth/status")]
-pub fn auth_status(user: Result<User, ErrorResponder>) -> Result<Json<StatusResponse>, ErrorResponder> {
-    let user = user?;
+pub fn auth_status(user: User) -> Result<Json<StatusResponse>, ErrorResponder> {
     Ok(Json(StatusResponse {
         name: user.name,
         email: user.email,

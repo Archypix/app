@@ -18,7 +18,9 @@ use validator::Validate;
 #[derive(JsonSchema, Deserialize, Debug, Validate)]
 pub struct ConfirmCodeData {
     action: ConfirmationAction,
+    /// The token sent to the browser when the action was initiated
     code_token: String,
+    /// 4-digit code emailed to the user
     #[validate(range(min = 0, max = 9999, message = "Code must be a 4 digit number"))]
     code: u16,
 }
@@ -26,6 +28,7 @@ pub struct ConfirmCodeData {
 #[derive(JsonSchema, Deserialize, Debug, Validate)]
 pub struct ConfirmTokenData {
     action: ConfirmationAction,
+    /// Emailed token
     token: String,
 }
 
@@ -45,6 +48,7 @@ pub enum ConfirmResponse {
     SignInUp(ConfirmSignInUpResponse),
 }
 
+/// Confirm any 2FA request with a code_token and a code (from email code).
 #[openapi(tag = "Authentication")]
 #[post("/auth/confirm/code", data = "<data>")]
 pub fn auth_confirm_code(data: Json<ConfirmCodeData>, db: &rocket::State<DBPool>, user_auth_info: UserAuthInfo, device_info: DeviceInfo) -> Result<Json<ConfirmResponse>, ErrorResponder> {
@@ -62,6 +66,7 @@ pub fn auth_confirm_code(data: Json<ConfirmCodeData>, db: &rocket::State<DBPool>
     })
 }
 
+/// Confirm any 2FA request with a token (from email link).
 #[openapi(tag = "Authentication")]
 #[post("/auth/confirm/token", data = "<data>")]
 pub fn auth_confirm_token(data: Json<ConfirmTokenData>, db: &rocket::State<DBPool>, user_auth_info: UserAuthInfo, device_info: DeviceInfo) -> Result<Json<ConfirmResponse>, ErrorResponder> {
@@ -79,6 +84,8 @@ pub fn auth_confirm_token(data: Json<ConfirmTokenData>, db: &rocket::State<DBPoo
     })
 }
 
+/// Execute the confirmation action and return the response.
+/// This function is called after the confirmation code or token is validated.
 fn confirm_execute(conn: &mut DBConn, action: &ConfirmationAction, user: User, redirect_url: String, device_info: &DeviceInfo) -> Result<Json<ConfirmResponse>, ErrorResponder> {
     match action {
         ConfirmationAction::Signup => {

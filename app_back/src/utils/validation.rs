@@ -4,6 +4,8 @@ use validator::{Validate, ValidationError};
 
 use crate::utils::errors_catcher::{ErrorResponder, ErrorType};
 
+/// Validate request data using the [`Validate`] trait from the `validator` crate.
+/// If the data is invalid, return an [`ErrorResponder`] with the proper error message.
 pub fn validate_input<T: Validate>(data: &Json<T>) -> Result<(), ErrorResponder> {
     if let Err(errors) = data.validate() {
         let message = errors.field_errors().iter().map(|(field, errors)| {
@@ -15,6 +17,9 @@ pub fn validate_input<T: Validate>(data: &Json<T>) -> Result<(), ErrorResponder>
     Ok(())
 }
 
+/// Custom validator for a username field
+/// - Must not start or end with whitespace
+/// - Must have a length between 5 and 100 characters
 pub fn validate_user_name(value: &str) -> Result<(), ValidationError> {
     if value.starts_with(char::is_whitespace) || value.ends_with(char::is_whitespace) {
         return Err(ValidationError::new("name_whitespace")
@@ -27,6 +32,9 @@ pub fn validate_user_name(value: &str) -> Result<(), ValidationError> {
     Ok(())
 }
 
+/// Custom validator for a password field
+/// - Must have a length between 8 and 100 characters
+/// - Must contain at least one lowercase letter, one uppercase letter and one digit
 pub fn validate_password(value: &str) -> Result<(), ValidationError> {
     if value.len() < 8 || value.len() > 100 {
         return Err(ValidationError::new("password_length")
@@ -39,6 +47,5 @@ pub fn validate_password(value: &str) -> Result<(), ValidationError> {
         return Err(ValidationError::new("password_requirements")
             .with_message(Cow::from("Password must contain at least one lowercase letter, one uppercase letter and one digit")));
     }
-
     Ok(())
 }

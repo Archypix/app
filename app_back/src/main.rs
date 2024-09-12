@@ -63,6 +63,7 @@ mod mailing {
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
+/// Entry point of Archypix app backend
 #[launch]
 #[tokio::main]
 async fn rocket() -> _ {
@@ -103,6 +104,7 @@ async fn rocket() -> _ {
         )
 }
 
+/// CORS configuration
 fn cors_options() -> Cors {
     let origin = [get_frontend_host(), get_backend_host()];
     CorsOptions {
