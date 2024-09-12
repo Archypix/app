@@ -1,6 +1,7 @@
 use diesel::sql_types::{Binary, Nullable, SqlType, VarChar};
 use diesel::{allow_tables_to_appear_in_same_query, joinable, table};
 use diesel_derives::define_sql_function;
+use rocket_okapi::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 define_sql_function! { fn last_insert_id() -> Unsigned<Bigint> }
@@ -8,7 +9,7 @@ define_sql_function! { fn inet6_ntoa(ip: Nullable<Binary>) -> Nullable<VarChar> 
 define_sql_function! { fn inet6_aton(ip: Nullable<VarChar>) -> Nullable<Varbinary> }
 define_sql_function! { fn utc_timestamp() -> Datetime }
 
-#[derive(Debug, PartialEq, Serialize, diesel_derive_enum::DbEnum)]
+#[derive(JsonSchema, Debug, PartialEq, Serialize, diesel_derive_enum::DbEnum)]
 pub enum UserStatus {
     Unconfirmed,
     Normal,
@@ -45,7 +46,7 @@ table! {
 joinable!(auth_tokens -> users (user_id));
 allow_tables_to_appear_in_same_query!(auth_tokens, users);
 
-#[derive(Debug, PartialEq, diesel_derive_enum::DbEnum, Deserialize, Serialize)]
+#[derive(JsonSchema, Debug, PartialEq, diesel_derive_enum::DbEnum, Deserialize, Serialize)]
 pub enum ConfirmationAction {
     Signup,
     Signin,

@@ -4,7 +4,13 @@ use diesel::Connection;
 use enum_kinds::EnumKind;
 use rocket::serde::json::Json;
 use rocket::Request;
+use rocket_okapi::gen::OpenApiGenerator;
+use rocket_okapi::okapi::openapi3::{MediaType, RefOr, Responses};
+use rocket_okapi::response::OpenApiResponderInner;
+use schemars::JsonSchema;
 use serde::Serialize;
+use strum::IntoEnumIterator;
+use strum_macros::{Display, EnumIter};
 
 #[derive(Responder, Debug)]
 pub enum ErrorResponder {
@@ -25,6 +31,11 @@ impl From<Error> for ErrorResponder {
         ErrorType::DatabaseError("Diesel error".to_string(), value).res_rollback()
     }
 }
+impl OpenApiResponderInner for ErrorResponder {
+    fn responses(gen: &mut OpenApiGenerator) -> rocket_okapi::Result<Responses> {
+        Ok(Responses::default())
+    }
+}
 impl ErrorResponder {
     pub fn do_rollback(&self) -> bool {
         match self {
@@ -37,15 +48,15 @@ impl ErrorResponder {
     }
 }
 
-#[derive(Serialize, Debug)]
+#[derive(JsonSchema, Serialize, Debug)]
 pub struct ErrorResponse {
     pub error_type: ErrorTypeKind,
     pub message: String,
     pub rollback: bool,
 }
 
-#[derive(EnumKind, Debug)]
-#[enum_kind(ErrorTypeKind, derive(Serialize))]
+#[derive(EnumKind, Debug, Display)]
+#[enum_kind(ErrorTypeKind, derive(EnumIter, Display, JsonSchema, Serialize))]
 pub enum ErrorType {
     BadRequest,
     Unauthorized,

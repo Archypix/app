@@ -10,9 +10,10 @@ use diesel::Connection;
 use pwhash::bcrypt;
 use rocket::serde::json::Json;
 use rocket::serde::{Deserialize, Serialize};
+use rocket_okapi::{openapi, JsonSchema};
 use std::env;
 
-#[derive(Deserialize, Debug)]
+#[derive(JsonSchema, Deserialize, Debug)]
 pub struct SigninData {
     email: String,
     password: String,
@@ -20,7 +21,7 @@ pub struct SigninData {
     redirect_url: Option<String>
 }
 
-#[derive(Serialize, Debug)]
+#[derive(JsonSchema, Serialize, Debug)]
 pub struct SigninResponse {
     pub status: UserStatus,
     pub user_id: u32,
@@ -29,12 +30,13 @@ pub struct SigninResponse {
     pub auth_token: String,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(JsonSchema, Serialize, Debug)]
 pub struct SigninEmailResponse {
     pub user_id: u32,
     pub code_token: String
 }
 
+#[openapi(tag = "Authentication")]
 #[post("/auth/signin", data = "<data>")]
 pub fn auth_signin(data: Json<SigninData>, db: &rocket::State<DBPool>, device_info: DeviceInfo) -> Result<Json<SigninResponse>, ErrorResponder> {
     let conn: &mut DBConn = &mut db.get().unwrap();
@@ -68,6 +70,7 @@ pub fn auth_signin(data: Json<SigninData>, db: &rocket::State<DBPool>, device_in
     })
 }
 
+#[openapi(tag = "Authentication")]
 #[post("/auth/signin/email", data = "<data>")]
 pub fn auth_signin_email(data: Json<SigninData>, db: &rocket::State<DBPool>, device_info: DeviceInfo) -> Result<Json<SigninEmailResponse>, ErrorResponder> {
     let conn: &mut DBConn = &mut db.get().unwrap();

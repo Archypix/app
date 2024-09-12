@@ -23,3 +23,7 @@ pub fn left_pad(string: &str, char: char, target_length: usize) -> String {
 pub fn get_frontend_host() -> String {
     std::env::var("FRONTEND_HOST").expect("FRONTEND_HOST must be set")
 }
+
+pub fn get_backend_host() -> String {
+    std::env::var("BACKEND_HOST").expect("BACKEND_HOST must be set")
+}

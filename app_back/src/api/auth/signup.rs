@@ -1,5 +1,6 @@
 use diesel::Connection;
 use rocket::serde::{json::Json, Deserialize};
+use rocket_okapi::{openapi, JsonSchema};
 use serde::Serialize;
 use std::env;
 use validator::Validate;
@@ -16,7 +17,7 @@ use crate::utils::validation::validate_input;
 use crate::utils::validation::validate_password;
 use crate::utils::validation::validate_user_name;
 
-#[derive(Deserialize, Debug, Validate)]
+#[derive(JsonSchema, Deserialize, Debug, Validate)]
 pub struct SignupData {
     #[validate(custom(function = validate_user_name))]
     name: String,
@@ -27,12 +28,13 @@ pub struct SignupData {
     redirect_url: Option<String>,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(JsonSchema, Serialize, Debug)]
 pub struct SignupResponse {
     pub(crate) user_id: u32,
     pub(crate) code_token: String,
 }
 
+#[openapi(tag = "Authentication")]
 #[post("/auth/signup", data = "<data>")]
 pub fn auth_signup(data: Json<SignupData>, db: &rocket::State<DBPool>, device_info: DeviceInfo) -> Result<Json<SignupResponse>, ErrorResponder> {
     validate_input(&data)?;

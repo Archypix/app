@@ -11,10 +11,11 @@ use crate::utils::validation::validate_input;
 use diesel::Connection;
 use rocket::serde::json::Json;
 use rocket::serde::{Deserialize, Serialize};
+use rocket_okapi::{openapi, JsonSchema};
 use std::env;
 use validator::Validate;
 
-#[derive(Deserialize, Debug, Validate)]
+#[derive(JsonSchema, Deserialize, Debug, Validate)]
 pub struct ConfirmCodeData {
     action: ConfirmationAction,
     code_token: String,
@@ -22,13 +23,13 @@ pub struct ConfirmCodeData {
     code: u16,
 }
 
-#[derive(Deserialize, Debug, Validate)]
+#[derive(JsonSchema, Deserialize, Debug, Validate)]
 pub struct ConfirmTokenData {
     action: ConfirmationAction,
     token: String,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(JsonSchema, Serialize, Debug)]
 pub struct ConfirmSignInUpResponse {
     pub status: UserStatus,
     pub user_id: u32,
@@ -38,13 +39,13 @@ pub struct ConfirmSignInUpResponse {
     pub redirect_url: String,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(JsonSchema, Serialize, Debug)]
 #[serde(untagged)]
 pub enum ConfirmResponse {
-    SignUp(ConfirmSignInUpResponse),
-    SignIn(ConfirmSignInUpResponse),
+    SignInUp(ConfirmSignInUpResponse),
 }
 
+#[openapi(tag = "Authentication")]
 #[post("/auth/confirm/code", data = "<data>")]
 pub fn auth_confirm_code(data: Json<ConfirmCodeData>, db: &rocket::State<DBPool>, user_auth_info: UserAuthInfo, device_info: DeviceInfo) -> Result<Json<ConfirmResponse>, ErrorResponder> {
     validate_input(&data)?;
@@ -61,6 +62,7 @@ pub fn auth_confirm_code(data: Json<ConfirmCodeData>, db: &rocket::State<DBPool>
     })
 }
 
+#[openapi(tag = "Authentication")]
 #[post("/auth/confirm/token", data = "<data>")]
 pub fn auth_confirm_token(data: Json<ConfirmTokenData>, db: &rocket::State<DBPool>, user_auth_info: UserAuthInfo, device_info: DeviceInfo) -> Result<Json<ConfirmResponse>, ErrorResponder> {
     validate_input(&data)?;
@@ -82,7 +84,7 @@ fn confirm_execute(conn: &mut DBConn, action: &ConfirmationAction, user: User, r
         ConfirmationAction::Signup => {
             user.switch_status(conn, &UserStatus::Normal)?;
             let auth_token = AuthToken::insert_token_for_user(conn, &user.id, device_info, 0)?;
-            Ok(Json(ConfirmResponse::SignUp(ConfirmSignInUpResponse {
+            Ok(Json(ConfirmResponse::SignInUp(ConfirmSignInUpResponse {
                 status: user.status,
                 name: user.name,
                 email: user.email,
@@ -94,7 +96,7 @@ fn confirm_execute(conn: &mut DBConn, action: &ConfirmationAction, user: User, r
         ConfirmationAction::Signin => {
             let auth_token = AuthToken::insert_token_for_user(conn, &user.id, &device_info, 0)?;
 
-            Ok(Json(ConfirmResponse::SignIn(ConfirmSignInUpResponse {
+            Ok(Json(ConfirmResponse::SignInUp(ConfirmSignInUpResponse {
                 status: user.status,
                 name: user.name,
                 email: user.email,

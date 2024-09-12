@@ -4,6 +4,9 @@ use rocket::form::validate::Contains;
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome};
 use rocket::Request;
+use rocket_okapi::gen::OpenApiGenerator;
+use rocket_okapi::okapi::openapi3::{Parameter, ParameterValue};
+use rocket_okapi::request::{OpenApiFromRequest, RequestHeaderInput};
 use user_agent_parser::{Device, Engine, OS};
 
 use crate::database::auth_token::AuthToken;
@@ -45,7 +48,28 @@ impl<'r> FromRequest<'r> for User {
         Outcome::Error((Status::Unauthorized, ErrorType::UserNotFound.res()))
     }
 }
-
+impl OpenApiFromRequest<'_> for User {
+    fn from_request_input(gen: &mut OpenApiGenerator, name: String, required: bool) -> rocket_okapi::Result<RequestHeaderInput> {
+        // Specify needed header: X-User-Id and X-Auth-Token
+        Ok(RequestHeaderInput::Parameter(Parameter {
+            name: "X-User-Id".to_string(),
+            location: "".to_string(),
+            description: None,
+            required: false,
+            deprecated: false,
+            allow_empty_value: false,
+            value: ParameterValue::Schema {
+                style: None,
+                explode: None,
+                allow_reserved: false,
+                schema: gen.json_schema::<u32>(),
+                example: None,
+                examples: None,
+            },
+            extensions: Default::default(),
+        }))
+    }
+}
 pub struct UserAuthInfo {
     pub user_id: Option<u32>,
     pub auth_token: Option<Vec<u8>>,
@@ -60,6 +84,28 @@ impl<'r> FromRequest<'r> for UserAuthInfo {
             user_id,
             auth_token,
         })
+    }
+}
+impl OpenApiFromRequest<'_> for UserAuthInfo {
+    fn from_request_input(gen: &mut OpenApiGenerator, name: String, required: bool) -> rocket_okapi::Result<RequestHeaderInput> {
+        // Specify needed header: X-User-Id and X-Auth-Token
+        Ok(RequestHeaderInput::Parameter(Parameter {
+            name: "X-User-Id".to_string(),
+            location: "".to_string(),
+            description: None,
+            required: false,
+            deprecated: false,
+            allow_empty_value: false,
+            value: ParameterValue::Schema {
+                style: None,
+                explode: None,
+                allow_reserved: false,
+                schema: gen.json_schema::<u32>(),
+                example: None,
+                examples: None,
+            },
+            extensions: Default::default(),
+        }))
     }
 }
 
@@ -99,6 +145,28 @@ impl<'r> FromRequest<'r> for DeviceInfo {
             device_string,
             ip_address,
         })
+    }
+}
+impl OpenApiFromRequest<'_> for DeviceInfo {
+    fn from_request_input(gen: &mut OpenApiGenerator, name: String, required: bool) -> rocket_okapi::Result<RequestHeaderInput> {
+        // Specify needed header: user-agent
+        Ok(RequestHeaderInput::Parameter(Parameter {
+            name: "User-Agent".to_string(),
+            location: "".to_string(),
+            description: None,
+            required: false,
+            deprecated: false,
+            allow_empty_value: false,
+            value: ParameterValue::Schema {
+                style: None,
+                explode: None,
+                allow_reserved: false,
+                schema: gen.json_schema::<String>(),
+                example: None,
+                examples: None,
+            },
+            extensions: Default::default(),
+        }))
     }
 }
 
