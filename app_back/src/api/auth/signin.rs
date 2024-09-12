@@ -18,6 +18,7 @@ pub struct SigninData {
     email: String,
     password: String,
     totp_code: Option<String>,
+    /// Optional redirect URL for the TFA confirmation (email confirmation)
     redirect_url: Option<String>
 }
 
@@ -36,12 +37,8 @@ pub struct SigninEmailResponse {
     pub code_token: String
 }
 
-/// Endpoint to sign in a user with an email, password, and optionally a TOTP code.
-/// If the user requires 2FA, it will either:
-/// - Throw `TFARequired` if no TOTP code is provided, but the user has a TOTP secret.
-/// - Throw `TFARequiredOverEmail` if the user has no TOTP secret; in this case, the login should
-///   be done again on `POST /auth/signin/email` to request TFA over email.
-/// - May log in using the TOTP code, throw `InvalidTOTPCode` if the code is invalid.
+/// Endpoint to sign in a user.
+/// If the user requires 2FA, it will either throw `TFARequired`, `TFARequiredOverEmail` or `InvalidTOTPCode`.
 #[openapi(tag = "Authentication")]
 #[post("/auth/signin", data = "<data>")]
 pub fn auth_signin(data: Json<SigninData>, db: &rocket::State<DBPool>, device_info: DeviceInfo) -> Result<Json<SigninResponse>, ErrorResponder> {
@@ -78,7 +75,6 @@ pub fn auth_signin(data: Json<SigninData>, db: &rocket::State<DBPool>, device_in
 
 
 /// Login endpoint for users that require 2FA; sends a confirmation email.
-/// The user must provide an email and password, and optionally a redirect URL for the email link.
 #[openapi(tag = "Authentication")]
 #[post("/auth/signin/email", data = "<data>")]
 pub fn auth_signin_email(data: Json<SigninData>, db: &rocket::State<DBPool>, device_info: DeviceInfo) -> Result<Json<SigninEmailResponse>, ErrorResponder> {

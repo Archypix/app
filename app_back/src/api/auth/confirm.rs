@@ -18,7 +18,7 @@ use validator::Validate;
 #[derive(JsonSchema, Deserialize, Debug, Validate)]
 pub struct ConfirmCodeData {
     action: ConfirmationAction,
-    /// The token sent to the browser when the action was initiated
+    /// token sent to the browser when the action was initiated
     code_token: String,
     /// 4-digit code emailed to the user
     #[validate(range(min = 0, max = 9999, message = "Code must be a 4 digit number"))]

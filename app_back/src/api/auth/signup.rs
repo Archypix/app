@@ -25,6 +25,7 @@ pub struct SignupData {
     email: String,
     #[validate(custom(function = validate_password))]
     password: String,
+    /// Optional redirect URL for the email confirmation
     redirect_url: Option<String>,
 }
 
@@ -34,9 +35,8 @@ pub struct SignupResponse {
     pub(crate) code_token: String,
 }
 
-/// Endpoint to register a new user account with a name, email and password.
+/// Endpoint to register a new user account.
 /// A confirmation entry will be added to the database, and an email will be sent to the user.
-/// A redirection URL can be provided to redirect the user after the email confirmation.
 #[openapi(tag = "Authentication")]
 #[post("/auth/signup", data = "<data>")]
 pub fn auth_signup(data: Json<SignupData>, db: &rocket::State<DBPool>, device_info: DeviceInfo) -> Result<Json<SignupResponse>, ErrorResponder> {
