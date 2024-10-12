@@ -11,7 +11,7 @@ use crate::database::schema::ConfirmationAction;
 use crate::database::user::User;
 use crate::mailing::mailer::send_rendered_email;
 use crate::utils::auth::DeviceInfo;
-use crate::utils::errors_catcher::{err_transaction, ErrorResponder};
+use crate::utils::errors_catcher::{err_transaction, ErrorResponder, ErrorType};
 use crate::utils::utils::{get_frontend_host, left_pad};
 use crate::utils::validation::validate_input;
 use crate::utils::validation::validate_password;

@@ -1,4 +1,4 @@
-FROM rust:1.80.1
+FROM rust:1.81
 WORKDIR /app
 
 # Libmysqlclient-dev is required for diesel
@@ -12,4 +12,4 @@ ENV ROCKET_ADDRESS=0.0.0.0
 ENV ROCKET_PORT=80
 EXPOSE 80
 
-CMD ["cargo", "watch", "-x", "run"]
+CMD ["sleep", "infinity"]

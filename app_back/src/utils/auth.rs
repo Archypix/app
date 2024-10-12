@@ -26,8 +26,8 @@ impl<'r> FromRequest<'r> for User {
     type Error = ErrorResponder;
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        let user_id = request.headers().get_one("X-User-Id").map(|s| s.parse::<u32>().ok()).flatten();
-        let auth_token = request.headers().get_one("X-Auth-Token").map(|s| hex::decode(s).ok()).flatten();
+        let user_id = User::get_id_from_headers(request);
+        let auth_token = AuthToken::get_auth_token_from_headers(request);
         if user_id.is_none() || auth_token.is_none() {
             return Outcome::Error((Status::Unauthorized, ErrorType::UserNotFound.res()));
         }
@@ -59,7 +59,7 @@ impl<'r> FromRequest<'r> for User {
 /// then this one only requires the X-Auth-Token header.
 /// (see [`UserAuthInfo`] for the X-User-Id header)
 impl OpenApiFromRequest<'_> for User {
-    fn from_request_input(gen: &mut OpenApiGenerator, name: String, required: bool) -> rocket_okapi::Result<RequestHeaderInput> {
+    fn from_request_input(_: &mut OpenApiGenerator, _: String, _: bool) -> rocket_okapi::Result<RequestHeaderInput> {
         let mut requirement = SecurityRequirement::new();
         requirement.insert("X-Auth-Token".to_string(), Vec::new());
         Ok(RequestHeaderInput::Security(
@@ -97,7 +97,7 @@ impl<'r> FromRequest<'r> for UserAuthInfo {
 /// then this one only requires the X-User-Id header.
 /// (see [`User`] for the X-Auth-Token header)
 impl OpenApiFromRequest<'_> for UserAuthInfo {
-    fn from_request_input(gen: &mut OpenApiGenerator, name: String, required: bool) -> rocket_okapi::Result<RequestHeaderInput> {
+    fn from_request_input(_: &mut OpenApiGenerator, _: String, _: bool) -> rocket_okapi::Result<RequestHeaderInput> {
         let mut requirement = SecurityRequirement::new();
         requirement.insert("X-User-Id".to_string(), Vec::new());
         Ok(RequestHeaderInput::Security(

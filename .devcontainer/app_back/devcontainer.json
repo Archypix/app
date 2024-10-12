@@ -1,0 +1,36 @@
+{
+  "name": "Archypix Back Dev Container",
+  "dockerComposeFile": [
+    "../compose.yaml"
+  ],
+  "workspaceFolder": "/app",
+  "service": "archypix-app-dev-back",
+  "runServices": [
+    "archypix-app-dev-db",
+    "archypix-app-dev-back",
+    "archypix-app-dev-front"
+  ],
+  "postStartCommand": "cargo run dev",
+  "portsAttributes": {
+    "8000": {
+      "label": "Archypix App Backend"
+    },
+    "3306": {
+      "label": "Archypix MySQL Database"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "streetsidesoftware.code-spell-checker"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "rust-analyzer.cargo.allFeatures": true,
+        "editor.formatOnSave": true,
+        "files.autoSave": "afterDelay"
+      }
+    }
+  }
+}

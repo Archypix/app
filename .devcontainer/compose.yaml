@@ -1,4 +1,3 @@
-version: '3.3'
 services:
   archypix-app-dev-db:
     image: mysql:8.4
@@ -16,8 +15,8 @@ services:
 
   archypix-app-dev-back:
     build:
-      context: ../app_back
-      dockerfile: ../.devcontainer/app_back/Dockerfile
+      context: app_back
+      dockerfile: Dockerfile
     container_name: archypix-app-dev-back
     restart: unless-stopped
     depends_on:
@@ -35,14 +34,13 @@ services:
 
   archypix-app-dev-front:
     build:
-      context: ../app_front
-      dockerfile: ../.devcontainer/app_front/Dockerfile
+      context: app_front
+      dockerfile: Dockerfile
     container_name: archypix-app-dev-front
     restart: unless-stopped
     ports:
       - "3000:80"
     environment:
       - NUXT_PUBLIC_BACKEND_HOST=http://archypix-app-back:8000
-      - NUXT_PUBLIC_BACKEND_HOST_SSR=http://archypix-app-back:8000
     volumes:
       - ../app_front:/app
