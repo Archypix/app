@@ -31,6 +31,7 @@ services:
       - SMTP_USERNAME=
       - SMTP_PASSWORD=
       - FRONTEND_HOST=http://localhost:3000 # for CORS policy
+      - BACKEND_HOST=http://localhost:8000 # for CORS policy
 
   archypix-app-front:
     build:
